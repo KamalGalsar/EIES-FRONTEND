@@ -1,6 +1,6 @@
 // src/services/authService.ts
 
-const API_BASE_URL = "http://localhost:5268";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
 export interface LoginCredentials {
   email: string;

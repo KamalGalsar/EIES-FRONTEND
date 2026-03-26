@@ -5,7 +5,7 @@ interface SsoButtonsProps {
   mode?: "signin" | "signup";
 }
 
-const BACKEND = "http://localhost:5268";
+const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
 export default function SsoButtons({ mode = "signin" }: SsoButtonsProps) {
   const action = mode === "signin" ? "Sign in" : "Sign up";

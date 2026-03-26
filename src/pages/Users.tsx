@@ -24,7 +24,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Bell, Search, User, Settings, LogOut } from "lucide-react";
 
-const API_BASE_URL = "http://localhost:5268";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
 function TopNavWithBack({ userName, userRole, onEmergency }: { userName: string; userRole: string; onEmergency: () => void }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);

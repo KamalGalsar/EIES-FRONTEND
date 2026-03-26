@@ -91,13 +91,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       role: data.role,
     });
   };
-
+  const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
   // LOGOUT
   const logout = async () => {
     try {
       const storedRefresh = localStorage.getItem("refreshToken");
       if (storedRefresh) {
-        await fetch("http://localhost:5268/api/auth/logout", {
+        await fetch(`${BACKEND}/api/auth/logout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(storedRefresh),

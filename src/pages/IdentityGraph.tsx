@@ -35,9 +35,10 @@ export default function IdentityGraph() {
   const [nodes, setNodes] = useState<NodeType[]>([]);
   const [edges, setEdges] = useState<EdgeType[]>([]);
   const [riskCounts, setRiskCounts] = useState({ high: 0, medium: 0, low: 0 });
+  const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
   useEffect(() => {
-    fetch("http://localhost:5268/api/entra/graph")
+    fetch(`${BACKEND}/api/entra/graph`)
       .then(res => res.json())
       .then(data => {
         // Define all nodes with clear IDs
