@@ -1,4 +1,4 @@
-// src/pages/AdminGovernance.tsx
+// Frontend/src/pages/AdminGovernance.tsx
 
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

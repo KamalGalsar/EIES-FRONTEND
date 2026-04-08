@@ -1,4 +1,4 @@
-//components/pages/IdentityGraph.tsx
+//pages/IdentityGraph.tsx
 import { useEffect, useState } from "react";
 import ReactFlow, {
   Background,
