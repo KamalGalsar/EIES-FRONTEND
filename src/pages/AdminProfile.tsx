@@ -50,7 +50,7 @@ type ValidationErrors = {
   location?: string;
 };
 
-// Toast
+// Toast (responsive)
 type ToastType = "success" | "error";
 function Toast({
   message,
@@ -68,7 +68,7 @@ function Toast({
 
   return (
     <div
-      className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border text-sm font-medium
+      className={`fixed top-4 right-4 left-4 sm:left-auto z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border text-sm font-medium max-w-md sm:right-6
         ${
           type === "success"
             ? "bg-white border-emerald-200 text-emerald-700 shadow-emerald-100 dark:bg-gray-800 dark:border-emerald-800 dark:text-emerald-400"
@@ -104,7 +104,7 @@ function Card({
   };
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-700">
         <div
           className={`w-8 h-8 rounded-lg flex items-center justify-center ${accentMap[accent]}`}
         >
@@ -114,7 +114,7 @@ function Card({
           {title}
         </h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-5 sm:p-6">{children}</div>
     </div>
   );
 }
@@ -144,10 +144,10 @@ function Field({
   const base =
     "w-full border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none transition-all";
   const activeClass =
-    "border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white dark:bg-gray-900 dark:focus:ring-blue-900/30";
+    "border-gray-300 dark:border-gray-600 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white dark:bg-gray-900 dark:focus:ring-blue-900/30";
   const readOnlyClass =
     "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 cursor-not-allowed";
-  const errorClass = error ? "border-red-500 focus:ring-red-100" : "";
+  const errorClass = error ? "border-red-500 focus:ring-red-100 dark:focus:ring-red-900/30" : "";
 
   return (
     <div className="space-y-1.5">
@@ -165,6 +165,7 @@ function Field({
         />
       ) : (
         <input
+          type={name === "phone" ? "tel" : "text"}
           value={value}
           disabled={!editing || readOnly}
           placeholder={placeholder}
@@ -219,7 +220,6 @@ export default function AdminProfile() {
       .finally(() => setLoading(false));
   }, [accessToken]);
 
-  // Validation function
   const validateField = (name: string, value: string): string | null => {
     if (!editing) return null;
     switch (name) {
@@ -237,15 +237,12 @@ export default function AdminProfile() {
   };
 
   const handleChange = (name: string, val: string) => {
-    // For phone, strip non-digits automatically
-    const processedVal = name === 'phone' ? val.replace(/\D/g, '') : val;
+    const processedVal = name === 'phone' ? val.replace(/\D/g, '').slice(0, 10) : val;
     setForm((f) => ({ ...f, [name]: processedVal }));
-    // Validate immediately
     const error = validateField(name, processedVal);
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  // Check if form has any errors
   const hasErrors = () => {
     return Object.values(errors).some(err => err != null) ||
            validatePhone(form.phone || '') !== null ||
@@ -331,7 +328,10 @@ export default function AdminProfile() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+          <p className="text-sm text-gray-500">Loading profile...</p>
+        </div>
       </div>
     );
   }
@@ -351,18 +351,18 @@ export default function AdminProfile() {
         />
       )}
 
-      {/* Top bar */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      {/* Top bar - fixed button styles for square appearance on mobile/tablet */}
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate(-1)}
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              Back
+              <span className="hidden sm:inline">Back</span>
             </button>
-            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="text-gray-300 dark:text-gray-600 hidden sm:block">|</span>
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-blue-600" />
               <span className="text-gray-900 dark:text-white font-semibold text-sm">
@@ -371,56 +371,56 @@ export default function AdminProfile() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {editing ? (
               <>
                 <button
                   onClick={handleCancel}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-1.5 p-2 sm:px-4 sm:py-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors whitespace-nowrap min-w-[36px] min-h-[36px] sm:min-w-0"
                 >
                   <X className="w-4 h-4" />
-                  Cancel
+                  <span className="hidden sm:inline">Cancel</span>
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving || hasErrors()}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-1.5 p-2 sm:px-4 sm:py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors whitespace-nowrap min-w-[36px] min-h-[36px] sm:min-w-0"
                 >
                   {saving ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Save className="w-4 h-4" />
                   )}
-                  {saving ? "Saving…" : "Save Changes"}
+                  <span className="hidden sm:inline">{saving ? "Saving…" : "Save Changes"}</span>
                 </button>
               </>
             ) : (
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="flex items-center justify-center gap-1.5 p-2 sm:px-4 sm:py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap min-w-[36px] min-h-[36px] sm:min-w-0"
               >
                 <Edit3 className="w-4 h-4" />
-                Edit Profile
+                <span className="hidden sm:inline">Edit Profile</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10 space-y-6">
-        {/* Hero */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 shadow-sm">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+        {/* Hero - responsive */}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 shadow-sm">
           <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg">
               {initials}
             </div>
-            <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-gray-800 rounded-full" />
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-gray-800 rounded-full" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
               {profile?.name}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{profile?.email}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{profile?.email}</p>
             <div className="flex flex-wrap items-center gap-2 mt-3">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800">
                 <Shield className="w-3 h-3" />
@@ -438,15 +438,15 @@ export default function AdminProfile() {
               )}
             </div>
           </div>
-          <div className="text-right hidden sm:block text-sm">
+          <div className="text-left sm:text-right w-full sm:w-auto mt-2 sm:mt-0">
             <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
               Member since
             </p>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               {profile?.createdAt
                 ? new Date(profile.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",
-                    month: "long",
+                    month: "short",
                     day: "numeric",
                   })
                 : "—"}
@@ -456,7 +456,7 @@ export default function AdminProfile() {
                 <p className="text-xs text-gray-400 uppercase tracking-wider mt-2 mb-1">
                   Last updated
                 </p>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {new Date(profile.updatedAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "short",
@@ -493,7 +493,7 @@ export default function AdminProfile() {
                 name="phone"
                 value={form.phone ?? ""}
                 editing={editing}
-                placeholder="999-999-9999"
+                placeholder="10-digit mobile number"
                 onChange={handleChange}
                 error={errors.phone}
               />
@@ -549,7 +549,7 @@ export default function AdminProfile() {
                   <span className="text-gray-500 flex items-center gap-2">
                     <User className="w-3.5 h-3.5" /> User ID
                   </span>
-                  <span className="text-gray-500 font-mono">
+                  <span className="text-gray-500 font-mono text-xs">
                     #{profile?.userId}
                   </span>
                 </div>
@@ -575,7 +575,7 @@ export default function AdminProfile() {
         {profile?.provider === "local" && (
           <Card title="Security" icon={Lock} accent="red">
             <div className="space-y-4">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
                   <p className="text-sm text-gray-900 dark:text-white font-medium">
                     Password
@@ -586,7 +586,7 @@ export default function AdminProfile() {
                 </div>
                 <button
                   onClick={() => setShowPwSection((s) => !s)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   {showPwSection ? "Cancel" : "Change"}
@@ -649,6 +649,7 @@ export default function AdminProfile() {
                         )}
                       </button>
                     </div>
+                    <p className="text-xs text-gray-400">Minimum 8 characters</p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -669,7 +670,7 @@ export default function AdminProfile() {
                   <button
                     onClick={handlePasswordChange}
                     disabled={pwSaving || !pw.current || !pw.next || !pw.confirm}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
                   >
                     {pwSaving ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

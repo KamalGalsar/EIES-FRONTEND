@@ -1,9 +1,9 @@
 // components/Navbar.tsx
 import { useEffect, useState, useRef } from "react";
-import { NavLink, useNavigate } from "react-router-dom"; // changed from Link to NavLink
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { useAuthModal } from '../context/AuthModalContext'; // Blur
+import { useAuthModal } from '../context/AuthModalContext';
 
 function ThemeToggle() {
   const getIsDark = () => {
@@ -151,7 +151,7 @@ function ProfileMenu() {
  return (
     <div className="relative ml-2" ref={menuRef}>
       <button
-        onClick={() => !isLoggingOut && setIsOpen(!isOpen)} // disable while logging out
+        onClick={() => !isLoggingOut && setIsOpen(!isOpen)}
         className={`flex h-9 w-9 items-center justify-center rounded-full transition-all hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${
           isAuthenticated 
             ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
@@ -163,7 +163,6 @@ function ProfileMenu() {
         disabled={isLoggingOut}
       >
         {isLoggingOut ? (
-          // Loading spinner
           <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" fill="none" />
             <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -329,8 +328,12 @@ function ProfileMenu() {
     </div>
   );
 }
-// For active page styling 
+
 export default function Navbar() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const hamburgerButtonRef = useRef<HTMLButtonElement>(null); // Ref for the hamburger button
+
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return `transition-colors pb-1 ${
       isActive
@@ -339,11 +342,69 @@ export default function Navbar() {
     }`;
   };
 
+  const getMobileNavLinkClass = ({ isActive }: { isActive: boolean }) => {
+    return `block w-full px-4 py-3 text-left transition-colors ${
+      isActive
+        ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 font-medium border-l-4 border-blue-600 dark:border-blue-300'
+        : 'text-black/70 dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'
+    }`;
+  };
+
+  // Close mobile menu when clicking outside, but ignore clicks on the hamburger button
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (
+        (mobileMenuRef.current && mobileMenuRef.current.contains(target)) ||
+        (hamburgerButtonRef.current && hamburgerButtonRef.current.contains(target))
+      ) {
+        return;
+      }
+      setIsMobileMenuOpen(false);
+    }
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
+
+  // Close mobile menu when window is resized to desktop size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isMobileMenuOpen]);
+
+  const handleMobileLinkClick = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur bg-white/70 dark:bg-gray-900/60 border-b border-black/10 dark:border-white/10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between text-black dark:text-white">
         {/* Logo */}
-        <NavLink to="/" className="flex items-center gap-3">
+        <NavLink to="/" className="flex items-center gap-3" onClick={handleMobileLinkClick}>
           <div className="h-8 w-8 rounded-md bg-gradient-to-br from-blue-600 to-indigo-600 grid place-items-center dark:from-blue-500 dark:to-indigo-500">
             <span className="text-white font-black text-lg">E</span>
           </div>
@@ -352,7 +413,7 @@ export default function Navbar() {
           </span>
         </NavLink>
 
-        {/* Navigation Links using NavLink */}
+        {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-6 text-sm">
           <NavLink to="/product" className={getNavLinkClass}>
             Product
@@ -368,12 +429,75 @@ export default function Navbar() {
           </NavLink>
         </nav>
 
-        {/* Right side - Theme Toggle & Profile */}
-        <div className="flex items-center">
+        {/* Right side - Mobile Menu Button, Theme Toggle & Profile */}
+        <div className="flex items-center gap-2">
+          {/* Hamburger Menu Button - visible on mobile */}
+          <button
+            ref={hamburgerButtonRef}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="block md:hidden p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+            aria-label="Toggle menu"
+            type="button"
+          >
+            {isMobileMenuOpen ? (
+              // Close icon
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              // Hamburger icon
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+          
           <ThemeToggle />
           <ProfileMenu />
         </div>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {isMobileMenuOpen && (
+        <div 
+          ref={mobileMenuRef}
+          className="absolute top-14 left-0 right-0 md:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-b border-black/10 dark:border-white/10 shadow-lg z-40 animate-in slide-in-from-top-2 duration-200"
+        >
+          <nav className="flex flex-col py-2 text-sm">
+            <NavLink 
+              to="/product" 
+              className={getMobileNavLinkClass}
+              onClick={handleMobileLinkClick}
+            >
+              Product
+            </NavLink>
+            <NavLink 
+              to="/solutions" 
+              className={getMobileNavLinkClass}
+              onClick={handleMobileLinkClick}
+            >
+              Solutions
+            </NavLink>
+            <NavLink 
+              to="/resources" 
+              className={getMobileNavLinkClass}
+              onClick={handleMobileLinkClick}
+            >
+              Resources
+            </NavLink>
+            <NavLink 
+              to="/company" 
+              className={getMobileNavLinkClass}
+              onClick={handleMobileLinkClick}
+            >
+              Company
+            </NavLink>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

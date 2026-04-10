@@ -1,5 +1,3 @@
-// src/types/admin.ts
-
 export const ROLE_LEVELS = {
   CEO: 1,
   CTO: 2,
@@ -76,7 +74,7 @@ export const MOCK_ADMINS: AdminUser[] = [
     name: "Nanda Kishore",
     email: "nanda@cloudthat.com",
     role: "SrVP",
-    roleLevel: 3,
+    roleLevel: 4,
     scope: "General",
     status: "active",
     createdBy: "Prarthit Mehta",
@@ -141,3 +139,17 @@ export const ROLE_HIERARCHY = [
     ]
   }
 ];
+
+export const CURRENT_USER: CurrentUser = {
+  id: 1,
+  name: "Bhavesh Goswami",
+  email: "bhavesh@cloudthat.com",
+  role: "CEO",
+  roleLevel: 1
+};
+
+export function canModify(currentUser: CurrentUser, targetUser: AdminUser): boolean {
+  if (targetUser.immutable) return false;
+  if (targetUser.role === 'CEO') return false;
+  return currentUser.roleLevel < targetUser.roleLevel;
+}

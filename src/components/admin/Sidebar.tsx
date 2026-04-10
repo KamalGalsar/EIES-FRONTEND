@@ -1,4 +1,5 @@
 // components/admin/Sidebar.tsx
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
@@ -8,42 +9,33 @@ import {
   FileText,
   Scale,
   Settings,
-  ChevronRight,
-  UserCircle
+  UserCircle,
+  X
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import type { RoleType } from '../../types/admin';
+import { type RoleType, CURRENT_USER } from '../../types/admin';
 
 interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  currentUser: { 
-    name: string; 
-    role: RoleType;    
-    roleLevel: number;
-  };
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, currentUser }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard, roles: [1,2,3,4,5,6,7] },
-    { id: 'admin-management', label: 'Admin Management', icon: Users, roles: [1,2,3,4,5] },
-    { id: 'role-hierarchy', label: 'Role Hierarchy', icon: GitBranch, roles: [1,2,3,4,5,6] },
-    { id: 'governance', label: 'Governance Controls', icon: Shield, roles: [1,2,3,4] },
-    { id: 'ai-controls', label: 'AI Controls', icon: Brain, roles: [1,2] },
-    { id: 'audit-logs', label: 'Audit Logs', icon: FileText, roles: [1,2,3,4,5,6] },
-    { id: 'compliance', label: 'Compliance', icon: Scale, roles: [1,2,3,4] },
-    { id: 'settings', label: 'System Settings', icon: Settings, roles: [1,2,5] },
+    { id: 'overview', path: '/admin', label: 'Overview', icon: LayoutDashboard },
+    { id: 'admin-management', path: '/admin/admin-management', label: 'Admin Management', icon: Users },
+    { id: 'role-hierarchy', path: '/admin/role-hierarchy', label: 'Role Hierarchy', icon: GitBranch },
+    { id: 'governance', path: '/admin/governance', label: 'Governance Controls', icon: Shield },
+    { id: 'ai-controls', path: '/admin/ai-controls', label: 'AI Controls', icon: Brain },
+    { id: 'audit-logs', path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
+    { id: 'compliance', path: '/admin/compliance', label: 'Compliance', icon: Scale },
+    { id: 'settings', path: '/admin/settings', label: 'System Settings', icon: Settings },
   ];
 
-  // Filter menu items based on user's role level
-  const filteredMenu = menuItems.filter(item => 
-    item.roles.includes(currentUser.roleLevel)
-  );
+  const isActive = (path: string) => location.pathname === path;
 
-  // Tailwind classes for each role badge
   const getRoleBadgeColor = (role: RoleType): string => {
     const colors: Record<RoleType, string> = {
       CEO: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
@@ -57,65 +49,84 @@ export default function Sidebar({ activeTab, setActiveTab, currentUser }: Sideba
       SECURITY_ADMIN: 'bg-red-500/20 text-red-500 border-red-500/30',
       ANALYST: 'bg-gray-500/20 text-gray-500 border-gray-500/30',
     };
-    return colors[role] || 'bg-gray-500/20 text-gray-500'; // fallback
+    return colors[role] || 'bg-gray-500/20 text-gray-500';
   };
 
   return (
-    <div className="w-64 bg-[#0F172A] h-screen fixed left-0 top-0 text-gray-300 flex flex-col">
-      <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center gap-2">
-          <Shield className="w-8 h-8 text-blue-500" />
-          <span className="text-xl font-bold text-white">EIES</span>
-        </div>
-        <div className="mt-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
-            {currentUser.name.charAt(0)}
+    <>
+      {/* Desktop sidebar always visible, mobile drawer */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 transform transition-transform duration-300 ease-in-out md:translate-x-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-xl md:shadow-none
+      `}>
+        {/* Close button for mobile */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-2">
+            <Shield className="w-8 h-8 text-blue-600 dark:text-blue-500" />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">EIES</span>
           </div>
-          <div>
-            <p className="text-white font-medium">{currentUser.name}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${getRoleBadgeColor(currentUser.role)}`}>
-                {currentUser.role}
-              </span>
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+              {CURRENT_USER.name.charAt(0)}
+            </div>
+            <div>
+              <p className="text-gray-900 dark:text-white font-medium">{CURRENT_USER.name}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-xs px-2 py-0.5 rounded-full border ${getRoleBadgeColor(CURRENT_USER.role)}`}>
+                  {CURRENT_USER.role}
+                </span>
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {filteredMenu.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                activeTab === item.id
-                  ? 'bg-blue-600/20 text-blue-400 border-l-4 border-blue-500'
-                  : 'hover:bg-gray-800/50 text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Icon className="w-5 h-5" />
-                <span className="text-sm">{item.label}</span>
-              </div>
-              {activeTab === item.id && <ChevronRight className="w-4 h-4" />}
-            </button>
-          );
-        })}
-      </nav>
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  navigate(item.path);
+                  onClose(); // close sidebar on mobile after navigation
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                  isActive(item.path)
+                    ? 'bg-blue-100 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5" />
+                  <span className="text-sm">{item.label}</span>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
 
-      {/* Profile shortcut */}
-      <div className="p-4 border-t border-gray-800">
-        <button
-          onClick={() => navigate('/admin/profile')}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-colors"
-        >
-          <UserCircle className="w-5 h-5" />
-          <span className="text-sm">My Profile</span>
-        </button>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+          <button
+            onClick={() => {
+              navigate('/admin/profile');
+              onClose();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+          >
+            <UserCircle className="w-5 h-5" />
+            <span className="text-sm">My Profile</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

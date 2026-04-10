@@ -2,11 +2,13 @@
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import SsoButtons from '../components/SsoButtons';
 
 export default function SignIn() {
   const [params] = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,19 +21,24 @@ export default function SignIn() {
     const error = params.get('error');
     if (error) {
       if (error === 'user_not_found') {
-        alert('No account found with this email. Please sign up first.');
+        showToast('No account found with this email. Please sign up first.', 'error');
       } else if (error === 'auth_failed') {
-        alert('Authentication failed. Please try again.');
+        showToast('Authentication failed. Please try again.', 'error');
       }
+      // Clear error from URL without reloading
+      const newParams = new URLSearchParams(params);
+      newParams.delete('error');
+      navigate({ search: newParams.toString() }, { replace: true });
     }
-  }, [params, isAuthenticated, navigate]);
+  }, [params, isAuthenticated, navigate, showToast]);
 
   const handleClose = () => {
     const redirectTo = params.get('redirect');
     if (redirectTo) {
       navigate(redirectTo);
     } else {
-      navigate(-1);
+      // If no history, go to home
+      navigate('/', { replace: true });
     }
   };
 
