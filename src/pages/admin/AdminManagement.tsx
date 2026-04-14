@@ -1,6 +1,7 @@
 // src/pages/admin/AdminManagement.tsx
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { useToast } from "../../context/ToastContext"; // <-- import custom toast hook
 import { userApi } from "../../services/api";
 import { canModify, type RoleType, type AdminUser, type CurrentUser } from "../../types/admin";
 
@@ -24,6 +25,8 @@ export default function AdminManagement() {
     scope: 'Global'
   });
 
+  const { showToast } = useToast(); // <-- get showToast function
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -39,17 +42,17 @@ export default function AdminManagement() {
       } catch (err: any) {
         console.error(err);
         setError(err.response?.data?.message || 'Failed to load data');
+        showToast('Failed to load admin data', 'error');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [showToast]);
 
   const handleAddAdmin = async () => {
-    // Validate that selected user exists
     if (!newAdmin.email) {
-      alert('Please select a user');
+      showToast('Please select a user', 'error');
       return;
     }
     try {
@@ -60,20 +63,26 @@ export default function AdminManagement() {
       setShowAddModal(false);
       // Reset form
       setNewAdmin({ email: '', role: 'ANALYST', scope: 'Global' });
+      // Success toast (green)
+      showToast(`✅ ${response.data.name} is now an admin with role ${response.data.role}`, 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to add admin');
+      const message = err.response?.data?.message || 'Failed to add admin';
+      showToast(message, 'error');
     }
   };
 
-  const handleDeleteAdmin = async (id: number) => {
+  const handleDeleteAdmin = async (id: number, adminName: string) => {
     if (!confirm('Are you sure you want to remove this admin role? The user will remain in the system.')) return;
     try {
       await userApi.delete(id);
       // Refresh list
       const usersRes = await userApi.getAll();
       setAdmins(usersRes.data);
+      // Removal toast (red)
+      showToast(`❌ Admin role removed from ${adminName}`, 'error');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to remove admin');
+      const message = err.response?.data?.message || 'Failed to remove admin';
+      showToast(message, 'error');
     }
   };
 
@@ -168,7 +177,7 @@ export default function AdminManagement() {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteAdmin(admin.id)}
+                        onClick={() => handleDeleteAdmin(admin.id, admin.name)}
                         disabled={!canModifyAdmin || admin.immutable}
                         className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
                           canModifyAdmin && !admin.immutable ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
@@ -186,7 +195,7 @@ export default function AdminManagement() {
         </table>
       </div>
 
-      {/* Add Admin Modal – using dropdown to select existing user */}
+      {/* Add Admin Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
