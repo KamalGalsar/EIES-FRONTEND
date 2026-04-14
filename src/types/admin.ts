@@ -1,3 +1,4 @@
+// types/admin.ts
 export const ROLE_LEVELS = {
   CEO: 1,
   CTO: 2,

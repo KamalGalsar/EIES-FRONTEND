@@ -1,5 +1,5 @@
 // components/users/UserLayout.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopNav from "./TopNav";
@@ -13,6 +13,43 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268
 export default function UserLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { showRemediationModal, isModalOpen, selectedAction, remediationStatus, closeModal, setRemediationStatus } = useRemediation();
+  
+  // Dynamic state for dashboard stats
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [activeGroups, setActiveGroups] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch users and groups on mount
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [usersRes, groupsRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/Entra/users`),
+          fetch(`${API_BASE_URL}/api/Entra/groups`),
+        ]);
+        
+        if (usersRes.ok) {
+          const users = await usersRes.json();
+          setTotalUsers(users.length);
+        } else {
+          console.error("Failed to fetch users");
+        }
+        
+        if (groupsRes.ok) {
+          const groups = await groupsRes.json();
+          setActiveGroups(groups.length);
+        } else {
+          console.error("Failed to fetch groups");
+        }
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStats();
+  }, []);
 
   const handleEmergency = () => {
     showRemediationModal("Emergency Remediation Phase");
@@ -83,37 +120,51 @@ export default function UserLayout() {
 
         {/* Stats row */}
         <div className="p-3 sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-4 sm:gap-8">
-              <div>
-                <span className="text-gray-500 dark:text-gray-400 text-xs">Risk Score</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-wrap gap-6 sm:gap-8">
+              {/* Risk Score */}
+              <div className="flex flex-col">
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Risk Score</span>
+                <div className="flex items-baseline gap-0.5 mt-0.5">
+                  <span className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                     {MOCK_USER_SUMMARY.riskScore}
                   </span>
                   <span className="text-xs text-gray-500">/100</span>
                 </div>
               </div>
-              <div>
-                <span className="text-gray-500 dark:text-gray-400 text-xs">Risk Level</span>
-                <div className="text-base sm:text-lg font-bold text-red-600 dark:text-red-400">
-                  {MOCK_USER_SUMMARY.riskLevel}
+
+              {/* Risk Level */}
+              <div className="flex flex-col">
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Risk Level</span>
+                <div className="mt-0.5">
+                  <span className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+                    {MOCK_USER_SUMMARY.riskLevel}
+                  </span>
                 </div>
               </div>
-              <div>
-                <span className="text-gray-500 dark:text-gray-400 text-xs">Total Users</span>
-                <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
-                  -
+
+              {/* Total Users */}
+              <div className="flex flex-col">
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Total Users</span>
+                <div className="mt-0.5">
+                  <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
+                    {loading ? "..." : totalUsers !== null ? totalUsers : "Error"}
+                  </span>
                 </div>
               </div>
-              <div>
-                <span className="text-gray-500 dark:text-gray-400 text-xs">Active Groups</span>
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  -
+
+              {/* Active Groups */}
+              <div className="flex flex-col">
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Active Groups</span>
+                <div className="mt-0.5">
+                  <span className="text-lg sm:text-xl font-medium text-gray-700 dark:text-gray-300">
+                    {loading ? "..." : activeGroups !== null ? activeGroups : "Error"}
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="text-xs text-gray-500">Live Microsoft Graph Data</div>
+
+            <div className="text-xs text-gray-500 self-center">Live Microsoft Graph Data</div>
           </div>
         </div>
       </div>

@@ -1,22 +1,53 @@
 // components/users/TopNav.tsx
-import { useState } from "react";
-import { Search, Bell, User, LogOut, Settings, AlertTriangle, ChevronLeft, Menu } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, Bell, User, LogOut, Settings, ChevronLeft, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 
 interface TopNavProps {
-  userName: string;
-  userRole: string;
   onEmergency?: () => void;
   onMenuClick: () => void;
 }
 
-export default function TopNav({ userName, userRole, onEmergency, onMenuClick }: TopNavProps) {
+export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { showToast } = useToast();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    }
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showProfileMenu) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showProfileMenu]);
 
   const handleLogout = async () => {
     await logout();
@@ -24,10 +55,28 @@ export default function TopNav({ userName, userRole, onEmergency, onMenuClick }:
     navigate('/');
   };
 
+  // Dynamic user data
+  const displayName = user?.name || user?.email?.split('@')[0] || 'User';
+  const userRole = user?.role || 'Member';
+
+  // Get initials: first letter of first name + first letter of last name
+  const getInitials = (name: string) => {
+    if (!name || name === 'User') return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase();
+    }
+    const first = parts[0].charAt(0);
+    const last = parts[parts.length - 1].charAt(0);
+    return (first + last).toUpperCase();
+  };
+
+  const userInitials = getInitials(displayName);
+
   return (
     <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 z-40 transition-all duration-300">
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
-        {/* Left section: Menu button + Back button + desktop search */}
+        {/* Left section */}
         <div className="flex items-center gap-3 flex-1">
           <button
             onClick={onMenuClick}
@@ -46,7 +95,7 @@ export default function TopNav({ userName, userRole, onEmergency, onMenuClick }:
           </button>
           <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
 
-          {/* Desktop search (hidden on mobile) */}
+          {/* Desktop search */}
           <div className="flex-1 max-w-xl hidden sm:block">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -58,16 +107,17 @@ export default function TopNav({ userName, userRole, onEmergency, onMenuClick }:
             </div>
           </div>
 
-          {/* Emergency button */}
-          <button
-            onClick={onEmergency}
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
-          >
-            Remediate
-          </button>
+          {onEmergency && (
+            <button
+              onClick={onEmergency}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+            >
+              Remediate
+            </button>
+          )}
         </div>
 
-        {/* Right section: Notifications & Profile */}
+        {/* Right section */}
         <div className="flex items-center gap-2 sm:gap-4">
           <button className="relative p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
             <Bell className="w-5 h-5" />
@@ -76,20 +126,24 @@ export default function TopNav({ userName, userRole, onEmergency, onMenuClick }:
 
           <div className="relative">
             <button
+              ref={buttonRef}
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center text-white text-sm">
-                {userName?.charAt(0) || "U"}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center text-white text-xs font-medium">
+                {userInitials}
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{userName}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{userRole}</p>
               </div>
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50">
+              <div
+                ref={menuRef}
+                className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50"
+              >
                 <button
                   onClick={() => {
                     navigate("/profile");
@@ -100,7 +154,13 @@ export default function TopNav({ userName, userRole, onEmergency, onMenuClick }:
                   <User className="w-4 h-4" />
                   Profile
                 </button>
-                <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <button
+                  onClick={() => {
+                    navigate("/settings");
+                    setShowProfileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>
@@ -117,8 +177,6 @@ export default function TopNav({ userName, userRole, onEmergency, onMenuClick }:
           </div>
         </div>
       </div>
-
-      {/* Mobile search bar removed – now placed inside summary bar */}
     </header>
   );
 }

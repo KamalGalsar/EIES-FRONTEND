@@ -1,18 +1,108 @@
 // src/pages/admin/AdminManagement.tsx
-import { useState } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
-import { MOCK_ADMINS, CURRENT_USER, canModify, type RoleType } from "../../types/admin";
+import { useState, useEffect } from "react";
+import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { userApi } from "../../services/api";
+import { canModify, type RoleType, type AdminUser, type CurrentUser } from "../../types/admin";
+
+// Available user type for dropdown
+interface AvailableUser {
+  id: number;
+  name: string;
+  email: string;
+}
 
 export default function AdminManagement() {
-  const [admins] = useState(MOCK_ADMINS);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', role: 'ANALYST' as RoleType, scope: '' });
+  const [newAdmin, setNewAdmin] = useState({
+    email: '',
+    role: 'ANALYST' as RoleType,
+    scope: 'Global'
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [usersRes, currentRes, availableRes] = await Promise.all([
+          userApi.getAll(),
+          userApi.getCurrent(),
+          userApi.getAvailableUsers(),
+        ]);
+        setAdmins(usersRes.data);
+        setCurrentUser(currentRes.data);
+        setAvailableUsers(availableRes.data);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.response?.data?.message || 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleAddAdmin = async () => {
+    // Validate that selected user exists
+    if (!newAdmin.email) {
+      alert('Please select a user');
+      return;
+    }
+    try {
+      const response = await userApi.create(newAdmin);
+      // Refresh admin list after addition
+      const usersRes = await userApi.getAll();
+      setAdmins(usersRes.data);
+      setShowAddModal(false);
+      // Reset form
+      setNewAdmin({ email: '', role: 'ANALYST', scope: 'Global' });
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to add admin');
+    }
+  };
+
+  const handleDeleteAdmin = async (id: number) => {
+    if (!confirm('Are you sure you want to remove this admin role? The user will remain in the system.')) return;
+    try {
+      await userApi.delete(id);
+      // Refresh list
+      const usersRes = await userApi.getAll();
+      setAdmins(usersRes.data);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to remove admin');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg text-red-600 dark:text-red-400">
+        Error: {error}
+      </div>
+    );
+  }
+
+  if (!currentUser) return null;
+
+  // Only CEO or CTO can see the Add Admin button
+  const canAddAdmin = currentUser.role === 'CEO' || currentUser.role === 'CTO';
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Management</h1>
-        {CURRENT_USER.role === 'CEO' && (
+        {canAddAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 focus:ring-4 focus:ring-blue-400/40"
@@ -37,7 +127,7 @@ export default function AdminManagement() {
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {admins.map((admin) => {
-              const canModifyAdmin = canModify(CURRENT_USER, admin);
+              const canModifyAdmin = canModify(currentUser, admin);
               return (
                 <tr key={admin.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-4 sm:px-6 py-4">
@@ -48,7 +138,7 @@ export default function AdminManagement() {
                     <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                       admin.role === 'CEO' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
                       admin.role === 'CTO' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
-                      admin.role === 'DIRECTOR' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400' :
+                      admin.role === 'DIRECTOR' || admin.role === 'DIRECTORUK' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400' :
                       'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
                     }`}>
                       {admin.role}
@@ -78,6 +168,7 @@ export default function AdminManagement() {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleDeleteAdmin(admin.id)}
                         disabled={!canModifyAdmin || admin.immutable}
                         className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
                           canModifyAdmin && !admin.immutable ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
@@ -95,48 +186,69 @@ export default function AdminManagement() {
         </table>
       </div>
 
+      {/* Add Admin Modal – using dropdown to select existing user */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add New Admin</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Admin Role</h3>
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Name"
-                value={newAdmin.name}
-                onChange={(e) => setNewAdmin({...newAdmin, name: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                value={newAdmin.email}
-                onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <select
-                value={newAdmin.role}
-                onChange={(e) => setNewAdmin({...newAdmin, role: e.target.value as RoleType})}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="ANALYST">Analyst</option>
-                <option value="SECURITY_ADMIN">Security Admin</option>
-                <option value="ADMIN_MANAGER">Admin Manager</option>
-                <option value="BU_HEAD">BU Head</option>
-                <option value="DIRECTOR">Director</option>
-                <option value="CTO">CTO</option>
-                <option value="DIRECTORUK">DIRECTOR - UK</option>
-                <option value="VPTECH">VP - TECH</option>
-                <option value="SrVP">Sr. VP</option>
-                <option value="CEO" disabled>CEO (Only one allowed)</option>
-              </select>
-              <input
-                type="text"
-                placeholder="Scope"
-                value={newAdmin.scope}
-                onChange={(e) => setNewAdmin({...newAdmin, scope: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
+              {/* Select existing user */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Select User
+                </label>
+                <select
+                  value={newAdmin.email}
+                  onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  required
+                >
+                  <option value="">-- Choose a user --</option>
+                  {availableUsers.map(user => (
+                    <option key={user.id} value={user.email}>
+                      {user.name} ({user.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Role selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Role
+                </label>
+                <select
+                  value={newAdmin.role}
+                  onChange={(e) => setNewAdmin({...newAdmin, role: e.target.value as RoleType})}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="ANALYST">Analyst</option>
+                  <option value="SECURITY_ADMIN">Security Admin</option>
+                  <option value="ADMIN_MANAGER">Admin Manager</option>
+                  <option value="BU_HEAD">BU Head</option>
+                  <option value="VPTECH">VP - TECH</option>
+                  <option value="SrVP">Sr. VP</option>
+                  <option value="DIRECTOR">Director</option>
+                  <option value="DIRECTORUK">Director - UK</option>
+                  <option value="CTO">CTO</option>
+                  <option value="CEO">CEO (only if no CEO exists)</option>
+                </select>
+              </div>
+
+              {/* Scope input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Scope
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Global, Consulting, UK, Tech"
+                  value={newAdmin.scope}
+                  onChange={(e) => setNewAdmin({...newAdmin, scope: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
               <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
                 <button
                   onClick={() => setShowAddModal(false)}
@@ -145,7 +257,7 @@ export default function AdminManagement() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={handleAddAdmin}
                   className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 focus:ring-4 focus:ring-blue-400/40"
                 >
                   Add Admin

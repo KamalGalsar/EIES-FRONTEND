@@ -27,7 +27,7 @@ import {
   Activity,
 } from "lucide-react";
 
-// Validation helpers 
+// Validation helpers
 function validatePhone(phone: string): string | null {
   const digitsOnly = phone.replace(/\D/g, '');
   if (digitsOnly.length > 0 && digitsOnly.length !== 10) {
@@ -50,7 +50,7 @@ type ValidationErrors = {
   location?: string;
 };
 
-// Toast (responsive)
+// Toast (responsive + full dark mode)
 type ToastType = "success" | "error";
 function Toast({
   message,
@@ -71,8 +71,8 @@ function Toast({
       className={`fixed top-4 right-4 left-4 sm:left-auto z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border text-sm font-medium max-w-md sm:right-6
         ${
           type === "success"
-            ? "bg-white border-emerald-200 text-emerald-700 shadow-emerald-100 dark:bg-gray-800 dark:border-emerald-800 dark:text-emerald-400"
-            : "bg-white border-red-200 text-red-700 shadow-red-100 dark:bg-gray-800 dark:border-red-800 dark:text-red-400"
+            ? "bg-white dark:bg-gray-800 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 shadow-emerald-100 dark:shadow-emerald-950/30"
+            : "bg-white dark:bg-gray-800 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 shadow-red-100 dark:shadow-red-950/30"
         }`}
       style={{ animation: "slideIn 0.25s ease-out" }}
     >
@@ -86,7 +86,7 @@ function Toast({
   );
 }
 
-// Card 
+// Card (dark borders & accents)
 function Card({
   title,
   icon: Icon,
@@ -99,12 +99,12 @@ function Card({
   accent?: "blue" | "red";
 }) {
   const accentMap = {
-    blue: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20",
-    red: "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20",
+    blue: "text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/40",
+    red: "text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-950/40",
   };
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
         <div
           className={`w-8 h-8 rounded-lg flex items-center justify-center ${accentMap[accent]}`}
         >
@@ -119,7 +119,7 @@ function Card({
   );
 }
 
-// Field 
+// Field (dark mode for read-only/editing)
 function Field({
   label,
   value,
@@ -144,9 +144,9 @@ function Field({
   const base =
     "w-full border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none transition-all";
   const activeClass =
-    "border-gray-300 dark:border-gray-600 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white dark:bg-gray-900 dark:focus:ring-blue-900/30";
+    "border-gray-300 dark:border-gray-600 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 bg-white dark:bg-gray-800";
   const readOnlyClass =
-    "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 cursor-not-allowed";
+    "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 cursor-not-allowed";
   const errorClass = error ? "border-red-500 focus:ring-red-100 dark:focus:ring-red-900/30" : "";
 
   return (
@@ -174,13 +174,13 @@ function Field({
         />
       )}
       {error && editing && !readOnly && (
-        <p className="text-xs text-red-600 mt-1">{error}</p>
+        <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>
       )}
     </div>
   );
 }
 
-// Main
+// Main Component
 export default function AdminProfile() {
   const { accessToken, user: ctxUser } = useAuth();
   const navigate = useNavigate();
@@ -327,17 +327,17 @@ export default function AdminProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-          <p className="text-sm text-gray-500">Loading profile...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-16">
       <style>{`
         @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
@@ -352,7 +352,7 @@ export default function AdminProfile() {
       )}
 
       {/* Top bar - fixed button styles for square appearance on mobile/tablet */}
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
+      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-4">
             <button
@@ -362,7 +362,7 @@ export default function AdminProfile() {
               <ChevronLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Back</span>
             </button>
-            <span className="text-gray-300 dark:text-gray-600 hidden sm:block">|</span>
+            <span className="text-gray-300 dark:text-gray-700 hidden sm:block">|</span>
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-blue-600" />
               <span className="text-gray-900 dark:text-white font-semibold text-sm">
@@ -376,7 +376,7 @@ export default function AdminProfile() {
               <>
                 <button
                   onClick={handleCancel}
-                  className="flex items-center justify-center gap-1.5 p-2 sm:px-4 sm:py-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors whitespace-nowrap min-w-[36px] min-h-[36px] sm:min-w-0"
+                  className="flex items-center justify-center gap-1.5 p-2 sm:px-4 sm:py-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors whitespace-nowrap min-w-[36px] min-h-[36px] sm:min-w-0"
                 >
                   <X className="w-4 h-4" />
                   <span className="hidden sm:inline">Cancel</span>
@@ -408,13 +408,13 @@ export default function AdminProfile() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
-        {/* Hero - responsive */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 shadow-sm">
+        {/* Hero - responsive + dark borders */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 shadow-sm">
           <div className="relative">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg">
               {initials}
             </div>
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-gray-800 rounded-full" />
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
@@ -422,24 +422,30 @@ export default function AdminProfile() {
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{profile?.email}</p>
             <div className="flex flex-wrap items-center gap-2 mt-3">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800">
                 <Shield className="w-3 h-3" />
                 Admin
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
                 <Key className="w-3 h-3" />
                 {providerLabel[profile?.provider ?? "local"] ?? profile?.provider}
               </span>
               {profile?.department && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
                   <Building2 className="w-3 h-3" />
                   {profile.department}
+                </span>
+              )}
+              {profile?.jobTitle && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800">
+                  <Briefcase className="w-3 h-3" />
+                  {profile.jobTitle}
                 </span>
               )}
             </div>
           </div>
           <div className="text-left sm:text-right w-full sm:w-auto mt-2 sm:mt-0">
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
               Member since
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -453,7 +459,7 @@ export default function AdminProfile() {
             </p>
             {profile?.updatedAt && (
               <>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mt-2 mb-1">
+                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-2 mb-1">
                   Last updated
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -531,12 +537,12 @@ export default function AdminProfile() {
                 error={errors.department}
               />
 
-              <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
+                <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Account Details
                 </p>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2">
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <Calendar className="w-3.5 h-3.5" /> Joined
                   </span>
                   <span className="text-gray-700 dark:text-gray-300">
@@ -546,10 +552,10 @@ export default function AdminProfile() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2">
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <User className="w-3.5 h-3.5" /> User ID
                   </span>
-                  <span className="text-gray-500 font-mono text-xs">
+                  <span className="text-gray-500 dark:text-gray-400 font-mono text-xs">
                     #{profile?.userId}
                   </span>
                 </div>
@@ -580,13 +586,13 @@ export default function AdminProfile() {
                   <p className="text-sm text-gray-900 dark:text-white font-medium">
                     Password
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     Change your login password
                   </p>
                 </div>
                 <button
                   onClick={() => setShowPwSection((s) => !s)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   {showPwSection ? "Cancel" : "Change"}
@@ -594,9 +600,9 @@ export default function AdminProfile() {
               </div>
 
               {showPwSection && (
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Current Password
                     </label>
                     <div className="relative">
@@ -607,12 +613,12 @@ export default function AdminProfile() {
                           setPw((p) => ({ ...p, current: e.target.value }))
                         }
                         placeholder="••••••••"
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 pr-10 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 pr-10 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
                       />
                       <button
                         type="button"
                         onClick={() => setShowCurrent((s) => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                       >
                         {showCurrent ? (
                           <EyeOff className="w-4 h-4" />
@@ -624,7 +630,7 @@ export default function AdminProfile() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       New Password
                     </label>
                     <div className="relative">
@@ -635,12 +641,12 @@ export default function AdminProfile() {
                           setPw((p) => ({ ...p, next: e.target.value }))
                         }
                         placeholder="Min 8 characters"
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 pr-10 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 pr-10 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNew((s) => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                       >
                         {showNew ? (
                           <EyeOff className="w-4 h-4" />
@@ -649,11 +655,11 @@ export default function AdminProfile() {
                         )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400">Minimum 8 characters</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Minimum 8 characters</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Confirm New Password
                     </label>
                     <input
@@ -663,7 +669,7 @@ export default function AdminProfile() {
                         setPw((p) => ({ ...p, confirm: e.target.value }))
                       }
                       placeholder="Repeat new password"
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
+                      className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
                     />
                   </div>
 

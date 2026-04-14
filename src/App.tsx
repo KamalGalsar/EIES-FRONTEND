@@ -15,7 +15,8 @@ import Company from "./pages/Company";
 import Contact from "./pages/Contact";
 import AdminGovernance from "./pages/AdminGovernance"; // redirect component
 import BackendTest from "./pages/BackendTest";
-import IdentityGraph from "./pages/IdentityGraph";
+import SimpleGraphDebug from "./components/graph/SimpleGraphDebug";
+import SimpleAllNodesGraph from "./components/graph/SimpleAllNodesGraph";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Profile from "./pages/Profile";
@@ -47,6 +48,9 @@ import SettingsPage from "./pages/users/Settings";
 
 // Old Users page (redirect)
 import UsersRedirect from "./pages/Users";
+
+// Import the new dynamic graph component
+import DynamicGraph from "./components/graph/DynamicGraph";
 
 // Protected Route
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -144,14 +148,9 @@ export default function App() {
                       </ProtectedRoute>
                     }
                   />
-                  <Route
-                    path="/identity-graph"
-                    element={
-                      <ProtectedRoute>
-                        <IdentityGraph />
-                      </ProtectedRoute>
-                    }
-                  />
+                  
+                  {/* Dynamic Graph Route - uses new component */}
+                  <Route path="/DynamicGraph" element={<SimpleAllNodesGraph />} />
 
                   {/* GRANULAR USER PAGES (protected) */}
                   <Route

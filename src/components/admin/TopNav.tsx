@@ -1,30 +1,77 @@
 // components/admin/TopNav.tsx
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, Bell, User, LogOut, Settings, ChevronLeft, Menu } from "lucide-react";
-import { type CurrentUser } from "../../types/admin";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 
 interface TopNavProps {
-  currentUser: CurrentUser;
-  onLogout: () => void;
   lockdown: boolean;
-  setLockdown: (value: boolean) => void;
-  onMenuClick: () => void;  // Added
+  onMenuClick: () => void;
 }
 
-export default function TopNav({ currentUser, onLogout, lockdown, onMenuClick }: TopNavProps) {
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+export default function TopNav({ lockdown, onMenuClick }: TopNavProps) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { showToast } = useToast();
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    }
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showProfileMenu) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showProfileMenu]);
 
   const handleLogout = async () => {
     await logout();
     showToast('Signed out successfully', 'success');
     navigate('/');
   };
+
+  // Dynamic user data
+  const displayName = user?.name || user?.email?.split('@')[0] || 'Admin';
+  const userRole = user?.role || 'ADMIN_MANAGER';
+
+  // Get initials: first letter of first name + first letter of last name
+  const getInitials = (name: string) => {
+    if (!name || name === 'Admin') return 'A';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase();
+    }
+    const first = parts[0].charAt(0);
+    const last = parts[parts.length - 1].charAt(0);
+    return (first + last).toUpperCase();
+  };
+
+  const userInitials = getInitials(displayName);
 
   return (
     <header className={`fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 z-30 transition-all duration-300 ${lockdown ? 'mt-8' : ''}`}>
@@ -70,20 +117,24 @@ export default function TopNav({ currentUser, onLogout, lockdown, onMenuClick }:
 
           <div className="relative">
             <button
+              ref={buttonRef}
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white text-sm">
-                {currentUser.name.charAt(0)}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
+                {userInitials}
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{currentUser.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{currentUser.role}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{userRole}</p>
               </div>
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50">
+              <div
+                ref={menuRef}
+                className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50"
+              >
                 <button
                   onClick={() => { navigate('/admin/profile'); setShowProfileMenu(false); }}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -91,7 +142,10 @@ export default function TopNav({ currentUser, onLogout, lockdown, onMenuClick }:
                   <User className="w-4 h-4" />
                   Profile
                 </button>
-                <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <button
+                  onClick={() => { navigate('/admin/settings'); setShowProfileMenu(false); }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>

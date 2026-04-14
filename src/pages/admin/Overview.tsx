@@ -1,9 +1,13 @@
 // src/pages/admin/Overview.tsx
+import { useEffect, useState } from "react";
 import { Users, AlertTriangle, Shield, Eye, Server, Activity } from "lucide-react";
 import { MOCK_ADMINS } from "../../types/admin";
 
-const stats = [
-  { label: 'Total Identities', value: '12,430', change: '+5.2%', icon: Users, color: 'blue' },
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+
+// Static stats (except Total Users which will be replaced dynamically)
+const baseStats = [
+  { label: 'Total Users', value: '0', change: '+5.2%', icon: Users, color: 'blue' },
   { label: 'High Risk Identities', value: '184', change: '-12%', icon: AlertTriangle, color: 'red' },
   { label: 'Unhealthy Permissions', value: '23', change: '+3', icon: Shield, color: 'orange' },
   { label: 'Shadow Admins', value: '11', change: '-2', icon: Eye, color: 'purple' },
@@ -12,6 +16,43 @@ const stats = [
 ];
 
 export default function Overview() {
+  const [stats, setStats] = useState(baseStats);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTotalUsers = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/Entra/users`);
+        if (!response.ok) throw new Error(`Failed to fetch users: ${response.status}`);
+        const users = await response.json();
+        const totalUsers = users.length;
+
+        // Update only the Total Users stat
+        setStats(prevStats =>
+          prevStats.map(stat =>
+            stat.label === 'Total Users'
+              ? { ...stat, value: totalUsers.toLocaleString() }
+              : stat
+          )
+        );
+      } catch (err) {
+        console.error("Error fetching total users:", err);
+        // Optionally show a fallback value or error indicator
+        setStats(prevStats =>
+          prevStats.map(stat =>
+            stat.label === 'Total Users'
+              ? { ...stat, value: 'Error' }
+              : stat
+          )
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTotalUsers();
+  }, []);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Governance Overview</h1>
@@ -27,12 +68,15 @@ export default function Overview() {
                 {stat.change}
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-4">{stat.value}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-4">
+              {loading && stat.label === 'Total Users' ? '...' : stat.value}
+            </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</p>
           </div>
         ))}
       </div>
 
+      {/* The rest of the component remains unchanged */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Risk Trend (Last 30 Days)</h3>
