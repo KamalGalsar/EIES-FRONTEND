@@ -25,7 +25,7 @@ export default function AdminManagement() {
     scope: 'Global'
   });
 
-  const { showToast } = useToast(); // <-- get showToast function
+  const { showToast } = useToast(); 
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,7 +64,7 @@ export default function AdminManagement() {
       // Reset form
       setNewAdmin({ email: '', role: 'ANALYST', scope: 'Global' });
       // Success toast (green)
-      showToast(`✅ ${response.data.name} is now an admin with role ${response.data.role}`, 'success');
+      showToast(`${response.data.name} is now an admin with role ${response.data.role}`, 'success');
     } catch (err: any) {
       const message = err.response?.data?.message || 'Failed to add admin';
       showToast(message, 'error');
@@ -79,7 +79,7 @@ export default function AdminManagement() {
       const usersRes = await userApi.getAll();
       setAdmins(usersRes.data);
       // Removal toast (red)
-      showToast(`❌ Admin role removed from ${adminName}`, 'error');
+      showToast(`Admin role removed from ${adminName}`, 'error');
     } catch (err: any) {
       const message = err.response?.data?.message || 'Failed to remove admin';
       showToast(message, 'error');
