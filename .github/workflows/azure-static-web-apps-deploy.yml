@@ -21,12 +21,7 @@ jobs:
         with:
           submodules: true
       
-      # Force a clean install to fix rolldown native binding issue
-      - name: Clean install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --force
-      
+      # No npm install, no build – we use the prebuilt dist folder
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
