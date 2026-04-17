@@ -1,4 +1,5 @@
-// components/Features.tsx
+// Frontend/src/components/users/Features.tsx
+
 function Icon({ path }: { path: string }) {
   return (
     <svg className="h-6 w-6 text-blue-600 dark:text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

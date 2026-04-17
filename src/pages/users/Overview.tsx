@@ -1,97 +1,341 @@
 // src/pages/users/Overview.tsx
+import { useEffect, useState, useCallback } from "react";
+import { Users, AlertTriangle, Shield, Eye, Server, Activity, RefreshCw } from "lucide-react";
 import { useRemediation } from "../../context/RemediationContext";
 import { MOCK_AI_EXPLANATIONS, MOCK_REMEDIATIONS } from "../../types/users";
 import DynamicGraph from "../../components/graph/DynamicGraph";
 
+interface BlastRadiusItem {
+  nodeId: string;
+  nodeName: string;
+  nodeType: string;
+  blastRadius: number;
+}
+
+interface ToxicFinding {
+  severity: string;
+  title: string;
+  description: string;
+  blastRadius: string;
+  remediation: string;
+  affectedEntityId: string;
+  affectedEntityName: string;
+}
+
+interface CachedDashboardData {
+  totalUsers: number;
+  highRiskCount: number;
+  unhealthyPermsCount: number;
+  orphanedSPCount: number;
+  averageBlast: number | null;
+  topBlastRadius: BlastRadiusItem[];
+  timestamp: number;
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+const CACHE_KEY = "admin_dashboard_cache";
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour (increased from 5 min)
+
+const baseStats = [
+  { label: 'Total Users', value: '0', change: '+5.2%', icon: Users, color: 'blue' },
+  { label: 'High Risk Identities', value: '0', change: '-12%', icon: AlertTriangle, color: 'red' },
+  { label: 'Unhealthy Permissions', value: '0', change: '+3', icon: Shield, color: 'orange' },
+  { label: 'Shadow Admins', value: '11', change: '-2', icon: Eye, color: 'purple' },
+  { label: 'Service Principal Without Owner', value: '0', change: '+1', icon: Server, color: 'yellow' },
+  { label: 'Risk Score', value: '0.0/10', change: '-0.3', icon: Activity, color: 'green' }
+];
+
+// Load cached data (returns null if no cache, but never deletes it)
+const loadFromCache = (): CachedDashboardData | null => {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    return JSON.parse(cached);
+  } catch {
+    return null;
+  }
+};
+
+// Save successful data to cache
+const saveToCache = (
+  totalUsers: number,
+  highRiskCount: number,
+  unhealthyPermsCount: number,
+  orphanedSPCount: number,
+  averageBlast: number | null,
+  topBlastRadius: BlastRadiusItem[]
+) => {
+  try {
+    const cacheData: CachedDashboardData = {
+      totalUsers,
+      highRiskCount,
+      unhealthyPermsCount,
+      orphanedSPCount,
+      averageBlast,
+      topBlastRadius,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (e) {
+    console.warn("Failed to cache dashboard data", e);
+  }
+};
+
+// Helper to build stats from raw numbers
+const buildStatsFromData = (data: CachedDashboardData) => {
+  return baseStats.map(stat => {
+    if (stat.label === 'Total Users') return { ...stat, value: data.totalUsers.toLocaleString() };
+    if (stat.label === 'High Risk Identities') return { ...stat, value: data.highRiskCount.toLocaleString() };
+    if (stat.label === 'Unhealthy Permissions') return { ...stat, value: data.unhealthyPermsCount.toLocaleString() };
+    if (stat.label === 'Service Principal Without Owner') return { ...stat, value: data.orphanedSPCount.toLocaleString() };
+    if (stat.label === 'Risk Score' && data.averageBlast !== null) {
+      const score = (data.averageBlast * 10).toFixed(1);
+      return { ...stat, value: `${score}/10` };
+    }
+    return stat;
+  });
+};
+
 export default function Overview() {
   const { showRemediationModal } = useRemediation();
 
+  const [stats, setStats] = useState(baseStats);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [topBlastRadius, setTopBlastRadius] = useState<BlastRadiusItem[]>([]);
+  const [loadingBlast, setLoadingBlast] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const fetchDashboardData = useCallback(async (showRetryState = false) => {
+    if (showRetryState) setIsRetrying(true);
+    
+    // Load cache first (to show something immediately)
+    const cached = loadFromCache();
+    let usedCache = false;
+    
+    if (cached) {
+      setStats(buildStatsFromData(cached));
+      setTopBlastRadius(cached.topBlastRadius);
+      setError(null);
+      setLoading(false);
+      setLoadingBlast(false);
+      usedCache = true;
+    }
+
+    try {
+      // Include credentials to send cookies/auth tokens
+      const fetchOptions = {
+        credentials: 'include' as RequestCredentials,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Content-Type': 'application/json',
+        },
+      };
+
+      const [usersRes, highRiskRes, toxicRes, blastRadiusRes, avgBlastRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/Entra/users`, fetchOptions),
+        fetch(`${API_BASE_URL}/api/Risk/scores/high-risk?threshold=0.7`, fetchOptions),
+        fetch(`${API_BASE_URL}/api/Toxic/findings`, fetchOptions),
+        fetch(`${API_BASE_URL}/api/Toxic/blast-radius-all`, fetchOptions),
+        fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`, fetchOptions)
+      ]);
+
+      if (!usersRes.ok) throw new Error(`Users API: ${usersRes.status}`);
+      if (!highRiskRes.ok) throw new Error(`High-risk API: ${highRiskRes.status}`);
+      if (!toxicRes.ok) throw new Error(`Toxic findings API: ${toxicRes.status}`);
+      if (!blastRadiusRes.ok) throw new Error(`Blast radius API: ${blastRadiusRes.status}`);
+      if (!avgBlastRes.ok) throw new Error(`Average blast API: ${avgBlastRes.status}`);
+
+      const users = await usersRes.json();
+      const highRiskNodes = await highRiskRes.json();
+      const toxicFindings: ToxicFinding[] = await toxicRes.json();
+      const blastRadiusData: BlastRadiusItem[] = await blastRadiusRes.json();
+      const avgBlastData = await avgBlastRes.json();
+      const averageBlast = avgBlastData.averageBlastRadius;
+
+      const totalUsers = users.length;
+      const highRiskCount = Array.isArray(highRiskNodes) ? highRiskNodes.length : 0;
+      const unhealthyPermsCount = toxicFindings.filter(f => f.title === "Dangerous app permission combination").length;
+      const orphanedSPCount = toxicFindings.filter(f => f.title === "Orphaned service principal").length;
+
+      const top5 = [...blastRadiusData]
+        .sort((a, b) => b.blastRadius - a.blastRadius)
+        .slice(0, 5);
+
+      const freshStats = baseStats.map(stat => {
+        if (stat.label === 'Total Users') return { ...stat, value: totalUsers.toLocaleString() };
+        if (stat.label === 'High Risk Identities') return { ...stat, value: highRiskCount.toLocaleString() };
+        if (stat.label === 'Unhealthy Permissions') return { ...stat, value: unhealthyPermsCount.toLocaleString() };
+        if (stat.label === 'Service Principal Without Owner') return { ...stat, value: orphanedSPCount.toLocaleString() };
+        if (stat.label === 'Risk Score') {
+          const score = (averageBlast * 10).toFixed(1);
+          return { ...stat, value: `${score}/10` };
+        }
+        return stat;
+      });
+
+      setStats(freshStats);
+      setTopBlastRadius(top5);
+      setError(null);
+      saveToCache(totalUsers, highRiskCount, unhealthyPermsCount, orphanedSPCount, averageBlast, top5);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      // Only show error if we have no cached data at all
+      if (!usedCache) {
+        setError(err instanceof Error ? err.message : "Failed to load data");
+        const erroredStats = baseStats.map(stat => {
+          if (['Total Users', 'High Risk Identities', 'Unhealthy Permissions', 'Service Principal Without Owner', 'Risk Score'].includes(stat.label)) {
+            return { ...stat, value: 'Error' };
+          }
+          return stat;
+        });
+        setStats(erroredStats);
+        setTopBlastRadius([]);
+      } else {
+        // We have cached data, keep it and just show a small warning (optional)
+        console.warn("Using cached data due to fetch failure");
+      }
+    } finally {
+      setLoading(false);
+      setLoadingBlast(false);
+      setIsRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const getNodeTypeBadge = (type: string) => {
+    switch (type) {
+      case 'user': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+      case 'group': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+      case 'servicePrincipal': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
+      case 'application': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+    }
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Graph Area - fully dynamic, fetches live data from /api/entra/graph */}
-      <div className="flex-1 min-w-0">
-        <div className="h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)] bg-[#0B1220] rounded-lg overflow-hidden">
-          <DynamicGraph />
+    <div className="space-y-6">
+      {/* Graph + Sidebar (unchanged) */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1 min-w-0">
+          <div className="h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)] bg-[#0B1220] rounded-lg overflow-hidden">
+            <DynamicGraph />
+          </div>
+        </div>
+
+        <div className="w-full lg:w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg flex flex-col h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)]">
+          {/* Sidebar content - same as before */}
+          <div className="p-5 pb-2 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              AI Risk Analysis
+            </h3>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
+            {MOCK_AI_EXPLANATIONS.map((exp) => (
+              <div key={exp.id} className={`p-3 rounded-lg ${exp.severity === "critical" ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800" : "bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800"}`}>
+                <p className={`text-sm font-medium ${exp.severity === "critical" ? "text-red-700 dark:text-red-400" : "text-yellow-700 dark:text-yellow-400"}`}>{exp.title}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{exp.description}</p>
+              </div>
+            ))}
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-right pt-2">Last analysis: 17-03-2026</div>
+          </div>
+          <div className="p-5 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Remediation Checklist</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {MOCK_REMEDIATIONS.map((action) => (
+                <button key={action.id} onClick={() => showRemediationModal(action.label)} className="w-full group flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition-all duration-200 text-left">
+                  <div className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-500 group-hover:border-blue-500 dark:group-hover:border-blue-400 transition-colors duration-200" />
+                  <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{action.label}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${action.label.includes("PIM") ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" : action.label.includes("group") ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" : action.label.includes("Revoke") ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"}`}>
+                    {action.label.includes("PIM") ? "PIM" : action.label.includes("group") ? "Group" : action.label.includes("Revoke") ? "Critical" : "CA"}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>3 pending actions</span>
+                <button className="text-blue-600 dark:text-blue-400 hover:underline">Apply all</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Right sidebar - AI Risk Analysis & Remediation Checklist (always visible) */}
-      <div className="w-full lg:w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-5 sm:p-6 h-fit">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-          AI Risk Analysis
-        </h3>
+      {/* Admin Overview Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Governance Overview</h2>
+          <button
+            onClick={() => fetchDashboardData(true)}
+            disabled={isRetrying}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+            {isRetrying ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
 
-        <div className="space-y-4 mb-6">
-          {MOCK_AI_EXPLANATIONS.map((exp) => (
-            <div
-              key={exp.id}
-              className={`p-3 rounded-lg ${
-                exp.severity === "critical"
-                  ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800"
-                  : "bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800"
-              }`}
-            >
-              <p className={`text-sm font-medium ${exp.severity === "critical" ? "text-red-700 dark:text-red-400" : "text-yellow-700 dark:text-yellow-400"}`}>
-                {exp.title}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
+            ⚠️ {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {stats.map((stat) => (
+            <div key={stat.label} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className={`p-2 bg-${stat.color}-100 dark:bg-${stat.color}-900/20 rounded-lg`}>
+                  <stat.icon className={`w-6 h-6 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+                </div>
+                <span className={`text-sm ${stat.change.startsWith('+') ? 'text-red-600' : 'text-green-600'}`}>
+                  {stat.change}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-4">
+                {loading ? '...' : stat.value}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{exp.description}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="mb-4 text-xs text-gray-500 dark:text-gray-400 text-right">
-          Last analysis: 17-03-2026
-        </div>
-
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Remediation Checklist
-        </h3>
-
-        <div className="space-y-2">
-          {MOCK_REMEDIATIONS.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => showRemediationModal(action.label)}
-              className="w-full group flex items-center gap-3 px-4 py-3 rounded-lg 
-                bg-gray-50 dark:bg-gray-700/50 
-                hover:bg-gray-100 dark:hover:bg-gray-700 
-                border border-gray-200 dark:border-gray-600 
-                transition-all duration-200 
-                text-left"
-            >
-              <div className="flex-shrink-0 w-5 h-5 rounded-full 
-                border-2 border-gray-300 dark:border-gray-500 
-                group-hover:border-blue-500 dark:group-hover:border-blue-400
-                group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20
-                transition-colors duration-200
-                flex items-center justify-center"
-              />
-              <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 
-                group-hover:text-gray-900 dark:group-hover:text-white">
-                {action.label}
-              </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-                action.label.includes("PIM")
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                  : action.label.includes("group")
-                    ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
-                    : action.label.includes("Revoke")
-                      ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                      : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-              }`}>
-                {action.label.includes("PIM") ? "PIM" : action.label.includes("group") ? "Group" : action.label.includes("Revoke") ? "Critical" : "CA"}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>3 pending actions</span>
-            <button className="text-blue-600 dark:text-blue-400 hover:underline">
-              Apply all
-            </button>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top 5 Blast Radius Identities</h3>
+          </div>
+          <div className="min-w-[300px] divide-y divide-gray-200 dark:divide-gray-700">
+            {loadingBlast ? (
+              <div className="p-6 text-center text-gray-500">Loading blast radius data...</div>
+            ) : topBlastRadius.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">No data available</div>
+            ) : (
+              topBlastRadius.map((item) => (
+                <div key={item.nodeId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{item.nodeName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${getNodeTypeBadge(item.nodeType)}`}>
+                        {item.nodeType}
+                      </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Blast Radius: {item.blastRadius}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {item.blastRadius} nodes
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

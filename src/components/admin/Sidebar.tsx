@@ -1,4 +1,5 @@
-// components/admin/Sidebar.tsx
+// Frontend/src/components/admin/Sidebar.tsx
+
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -24,11 +25,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Get user display data from auth context
   const displayName = user?.name || user?.email?.split('@')[0] || 'Admin';
   const userRole = user?.role || 'ADMIN_MANAGER';
 
-  // Get initials: first letter of first name + first letter of last name
   const getInitials = (name: string) => {
     if (!name || name === 'Admin') return 'A';
     const parts = name.trim().split(/\s+/);
@@ -43,17 +42,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const userInitials = getInitials(displayName);
 
   const menuItems = [
-    { id: 'overview', path: '/admin', label: 'Overview', icon: LayoutDashboard },
     { id: 'admin-management', path: '/admin/admin-management', label: 'Admin Management', icon: Users },
     { id: 'role-hierarchy', path: '/admin/role-hierarchy', label: 'Role Hierarchy', icon: GitBranch },
     { id: 'governance', path: '/admin/governance', label: 'Governance Controls', icon: Shield },
-    { id: 'ai-controls', path: '/admin/ai-controls', label: 'AI Controls', icon: Brain },
+    // { id: 'ai-controls', path: '/admin/ai-controls', label: 'AI Controls', icon: Brain },
     { id: 'audit-logs', path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
     { id: 'compliance', path: '/admin/compliance', label: 'Compliance', icon: Scale },
     { id: 'settings', path: '/admin/settings', label: 'System Settings', icon: Settings },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  // UPDATED: active detection with fallback for root admin path
+  const isActive = (path: string) => {
+    const currentPath = location.pathname;
+    // Exact match
+    if (currentPath === path) return true;
+    // If we are at the root admin page, treat Admin Management as active
+    if (path === '/admin/admin-management' && currentPath === '/admin') return true;
+    // Also if you had an old overview page, uncomment the next line:
+    // if (path === '/admin/admin-management' && currentPath === '/admin/overview') return true;
+    return false;
+  };
 
   const getRoleBadgeColor = (role: string): string => {
     const colors: Record<string, string> = {
@@ -73,13 +81,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop sidebar always visible, mobile drawer */}
       <div className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 transform transition-transform duration-300 ease-in-out md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-xl md:shadow-none
       `}>
-        {/* Close button for mobile */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"

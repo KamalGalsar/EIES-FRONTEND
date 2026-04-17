@@ -1,4 +1,5 @@
-// src/pages/admin/SystemSettings.tsx
+// Frontend/src/pages/admin/SystemSettings.tsx
+
 export default function SystemSettings() {
   return (
     <div className="space-y-6">

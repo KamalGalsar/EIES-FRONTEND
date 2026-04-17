@@ -1,4 +1,5 @@
-// src/pages/AdminGovernance.tsx
+// Frontend/src/pages/users/AdminGovernance.tsx
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 

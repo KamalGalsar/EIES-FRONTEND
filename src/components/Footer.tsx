@@ -1,3 +1,5 @@
+// Frontend/src/components/Footer.tsx
+
 export default function Footer() {
   return (
     <footer id="contact" className="bg-gray-900 text-white border-t border-white/10">

@@ -1,3 +1,5 @@
+// Frontend/src/App.tsx
+
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -112,7 +114,7 @@ export default function App() {
                       </AdminRoute>
                     }
                   >
-                    <Route index element={<Overview />} />
+                    <Route index element={<Navigate to="/admin/admin-management" replace />} />
                     <Route path="admin-management" element={<AdminManagement />} />
                     <Route path="role-hierarchy" element={<RoleHierarchy />} />
                     <Route path="governance" element={<GovernanceControls />} />

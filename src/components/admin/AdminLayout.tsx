@@ -1,4 +1,4 @@
-// components/admin/AdminLayout.tsx
+// Frontend/src/components/admin/AdminLayout.tsx
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";

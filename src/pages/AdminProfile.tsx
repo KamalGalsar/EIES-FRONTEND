@@ -1,4 +1,4 @@
-// src/pages/AdminProfile.tsx
+// Frontend/src/pages/users/AdminProfile.tsx
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";

@@ -1,62 +1,137 @@
-// src/pages/admin/Overview.tsx
+// Frontend/src/pages/admin/Overview.tsx
+
 import { useEffect, useState } from "react";
 import { Users, AlertTriangle, Shield, Eye, Server, Activity } from "lucide-react";
-import { MOCK_ADMINS } from "../../types/admin";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
-// Static stats (except Total Users which will be replaced dynamically)
+// Types
+interface BlastRadiusItem {
+  nodeId: string;
+  nodeName: string;
+  nodeType: string;
+  blastRadius: number;
+}
+
+interface ToxicFinding {
+  severity: string;
+  title: string;
+  description: string;
+  blastRadius: string;
+  remediation: string;
+  affectedEntityId: string;
+  affectedEntityName: string;
+}
+
+// Static stats template (values will be updated dynamically)
 const baseStats = [
   { label: 'Total Users', value: '0', change: '+5.2%', icon: Users, color: 'blue' },
-  { label: 'High Risk Identities', value: '184', change: '-12%', icon: AlertTriangle, color: 'red' },
-  { label: 'Unhealthy Permissions', value: '23', change: '+3', icon: Shield, color: 'orange' },
+  { label: 'High Risk Identities', value: '0', change: '-12%', icon: AlertTriangle, color: 'red' },
+  { label: 'Unhealthy Permissions', value: '0', change: '+3', icon: Shield, color: 'orange' },
   { label: 'Shadow Admins', value: '11', change: '-2', icon: Eye, color: 'purple' },
-  { label: 'Service Principal Without Owner', value: '7', change: '+1', icon: Server, color: 'yellow' },
-  { label: 'Blast Radius Score', value: '8.7/10', change: '-0.3', icon: Activity, color: 'green' }
+  { label: 'Service Principal Without Owner', value: '0', change: '+1', icon: Server, color: 'yellow' },
+  { label: 'Risk Score', value: '0.0/10', change: '-0.3', icon: Activity, color: 'green' }
 ];
 
 export default function Overview() {
   const [stats, setStats] = useState(baseStats);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [topBlastRadius, setTopBlastRadius] = useState<BlastRadiusItem[]>([]);
+  const [loadingBlast, setLoadingBlast] = useState(true);
 
   useEffect(() => {
-    const fetchTotalUsers = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/Entra/users`);
-        if (!response.ok) throw new Error(`Failed to fetch users: ${response.status}`);
-        const users = await response.json();
-        const totalUsers = users.length;
+        // Fetch all required data in parallel
+        // Note: /api/Risk/average-risk-score does NOT exist; we use average-blast-radius instead
+        const [usersRes, highRiskRes, toxicRes, blastRadiusRes, avgBlastRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/Entra/users`),
+          fetch(`${API_BASE_URL}/api/Risk/scores/high-risk?threshold=0.7`),
+          fetch(`${API_BASE_URL}/api/Toxic/findings`),
+          fetch(`${API_BASE_URL}/api/Toxic/blast-radius-all`),
+          fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`)
+        ]);
 
-        // Update only the Total Users stat
+        if (!usersRes.ok) throw new Error(`Failed to fetch users: ${usersRes.status}`);
+        if (!highRiskRes.ok) throw new Error(`Failed to fetch high-risk identities: ${highRiskRes.status}`);
+        if (!toxicRes.ok) throw new Error(`Failed to fetch toxic findings: ${toxicRes.status}`);
+        if (!blastRadiusRes.ok) throw new Error(`Failed to fetch blast radius data: ${blastRadiusRes.status}`);
+        if (!avgBlastRes.ok) throw new Error(`Failed to fetch average blast radius: ${avgBlastRes.status}`);
+
+        const users = await usersRes.json();
+        const highRiskNodes = await highRiskRes.json();
+        const toxicFindings: ToxicFinding[] = await toxicRes.json();
+        const blastRadiusData: BlastRadiusItem[] = await blastRadiusRes.json();
+        const avgBlastData = await avgBlastRes.json();
+        const averageBlast = avgBlastData.averageBlastRadius; // e.g., 0.580248...
+
+        const totalUsers = users.length;
+        const highRiskCount = Array.isArray(highRiskNodes) ? highRiskNodes.length : 0;
+        const unhealthyPermsCount = toxicFindings.filter(f => f.title === "Dangerous app permission combination").length;
+        const orphanedSPCount = toxicFindings.filter(f => f.title === "Orphaned service principal").length;
+
         setStats(prevStats =>
-          prevStats.map(stat =>
-            stat.label === 'Total Users'
-              ? { ...stat, value: totalUsers.toLocaleString() }
-              : stat
-          )
+          prevStats.map(stat => {
+            if (stat.label === 'Total Users') return { ...stat, value: totalUsers.toLocaleString() };
+            if (stat.label === 'High Risk Identities') return { ...stat, value: highRiskCount.toLocaleString() };
+            if (stat.label === 'Unhealthy Permissions') return { ...stat, value: unhealthyPermsCount.toLocaleString() };
+            if (stat.label === 'Service Principal Without Owner') return { ...stat, value: orphanedSPCount.toLocaleString() };
+            if (stat.label === 'Risk Score') {
+              // Convert 0–1 scale to "X.X/10"
+              const score = (averageBlast * 10).toFixed(1);
+              return { ...stat, value: `${score}/10` };
+            }
+            return stat;
+          })
         );
+
+        // Top 5 blast radius identities
+        const top5 = [...blastRadiusData]
+          .sort((a, b) => b.blastRadius - a.blastRadius)
+          .slice(0, 5);
+        setTopBlastRadius(top5);
+        setLoadingBlast(false);
       } catch (err) {
-        console.error("Error fetching total users:", err);
-        // Optionally show a fallback value or error indicator
+        console.error("Error fetching dashboard data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load data");
         setStats(prevStats =>
-          prevStats.map(stat =>
-            stat.label === 'Total Users'
-              ? { ...stat, value: 'Error' }
-              : stat
-          )
+          prevStats.map(stat => {
+            if (['Total Users', 'High Risk Identities', 'Unhealthy Permissions', 'Service Principal Without Owner', 'Risk Score'].includes(stat.label)) {
+              return { ...stat, value: 'Error' };
+            }
+            return stat;
+          })
         );
+        setLoadingBlast(false);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTotalUsers();
+    fetchDashboardData();
   }, []);
+
+  const getNodeTypeBadge = (type: string) => {
+    switch (type) {
+      case 'user': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+      case 'group': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+      case 'servicePrincipal': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
+      case 'application': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+    }
+  };
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Governance Overview</h1>
       
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
+          ⚠️ {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {stats.map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -69,50 +144,13 @@ export default function Overview() {
               </span>
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-4">
-              {loading && stat.label === 'Total Users' ? '...' : stat.value}
+              {loading && ['Total Users', 'High Risk Identities', 'Unhealthy Permissions', 'Service Principal Without Owner', 'Risk Score'].includes(stat.label) 
+                ? '...' 
+                : stat.value}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</p>
           </div>
         ))}
-      </div>
-
-      {/* The rest of the component remains unchanged */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Risk Trend (Last 30 Days)</h3>
-          <div className="min-w-[300px] h-48 flex items-end gap-1 sm:gap-2">
-            {[65, 45, 75, 55, 80, 60, 70, 50, 85, 55, 65, 45].map((height, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full bg-blue-100 dark:bg-blue-900/20 rounded-t h-24 relative">
-                  <div className="absolute bottom-0 w-full bg-blue-600 dark:bg-blue-500 rounded-t transition-all" style={{ height: `${height}%` }} />
-                </div>
-                <span className="text-xs text-gray-600 dark:text-gray-400">D{i+1}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Unhealthy Permissions Distribution</h3>
-          <div className="space-y-4">
-            {[
-              { name: 'Privileged Access', value: 45, color: 'red' },
-              { name: 'Service Principals', value: 30, color: 'orange' },
-              { name: 'Directory Roles', value: 15, color: 'yellow' },
-              { name: 'App Permissions', value: 10, color: 'green' }
-            ].map((item) => (
-              <div key={item.name}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">{item.name}</span>
-                  <span className="text-gray-900 dark:text-white">{item.value}%</span>
-                </div>
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div className={`h-full bg-${item.color}-600 dark:bg-${item.color}-500 rounded-full`} style={{ width: `${item.value}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
@@ -120,23 +158,32 @@ export default function Overview() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top 5 Blast Radius Identities</h3>
         </div>
         <div className="min-w-[300px] divide-y divide-gray-200 dark:divide-gray-700">
-          {MOCK_ADMINS.slice(0, 5).map((admin) => (
-            <div key={admin.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">{admin.name}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{admin.role} • {admin.scope}</p>
+          {loadingBlast ? (
+            <div className="p-6 text-center text-gray-500">Loading blast radius data...</div>
+          ) : topBlastRadius.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">No data available</div>
+          ) : (
+            topBlastRadius.map((item) => (
+              <div key={item.nodeId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">{item.nodeName}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${getNodeTypeBadge(item.nodeType)}`}>
+                      {item.nodeType}
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Blast Radius: {item.blastRadius}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {item.blastRadius} nodes
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  admin.riskLevel === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
-                  admin.riskLevel === 'medium' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
-                  'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                }`}>
-                  {admin.riskLevel}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

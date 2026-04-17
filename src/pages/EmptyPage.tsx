@@ -1,3 +1,5 @@
+// Frontend/src/pages/users/EmptyPage.tsx
+
 interface EmptyPageProps {
   title: string;
 }

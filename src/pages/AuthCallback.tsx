@@ -1,3 +1,5 @@
+// Frontend/src/pages/users/AuthCallback.tsx
+
 // Handles the redirect from backend after OAuth completes.
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';

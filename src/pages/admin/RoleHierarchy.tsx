@@ -1,4 +1,5 @@
-// src/pages/admin/RoleHierarchy.tsx
+// Frontend/src/pages/admin/RoleHierarchy.tsx
+
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Shield, Users, Briefcase, Globe, ChevronUp } from "lucide-react";
 

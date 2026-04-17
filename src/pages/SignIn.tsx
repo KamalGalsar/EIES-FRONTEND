@@ -1,4 +1,5 @@
-// src/pages/SignIn.tsx
+// Frontend/src/pages/users/SignIn.tsx
+
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';

@@ -1,4 +1,4 @@
-// src/pages/admin/AiControls.tsx
+// Frontend/src/pages/admin/AiControls.tsx
 import { CURRENT_USER } from "../../types/admin";
 
 export default function AIControls() {

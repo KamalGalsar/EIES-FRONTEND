@@ -1,4 +1,5 @@
-// components/SsoButtons.tsx
+// Frontend/src/components/users/SsoButtons.tsx
+
 import { useState, useEffect, useRef } from "react";
 
 interface SsoButtonsProps {

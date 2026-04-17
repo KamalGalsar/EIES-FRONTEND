@@ -1,4 +1,5 @@
-// src/pages/admin/Compliance.tsx
+// Frontend/src/pages/admin/Compliance.tsx
+
 export default function Compliance() {
   return (
     <div className="space-y-6">

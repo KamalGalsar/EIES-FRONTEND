@@ -1,4 +1,5 @@
-// src/pages/SignUp.tsx
+// Frontend/src/pages/users/SignUp.tsx
+
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';

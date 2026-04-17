@@ -1,4 +1,4 @@
-// src/routes/ProtectedRoute.tsx
+// Frontend/src/routes/ProtectedRoute.tsx
 
 import React from "react";
 import { Navigate } from "react-router-dom";

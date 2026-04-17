@@ -1,4 +1,6 @@
-import axios from 'axios';
+// Frontend/src/services/api.ts
+
+import axios from "axios";
 
 const API_ROOT = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5268';
 const api = axios.create({
@@ -16,9 +18,17 @@ export const userApi = {
   getAll: () => api.get('/admin/users'),
   getCurrent: () => api.get('/admin/me'),
   getAvailableUsers: () => api.get('/admin/available-users'),
-  create: (data: { email: string; role: string; scope: string }) => api.post('/admin/users', data),
-  update: (id: number, data: any) => api.put(`/admin/users/${id}`, data),
+  create: (data: { email: string; role: string; scope: string }) => 
+    api.post('/admin/users', data),
+  update: (id: number, data: Partial<{ role: string; scope: string; status: string }>) => 
+    api.put(`/admin/users/${id}`, data),
   delete: (id: number) => api.delete(`/admin/users/${id}`),
+};
+
+// Optional: Add to api.ts
+export const toxicApi = {
+  getBlastRadiusGraph: (nodeId: string) =>
+    api.get(`/toxic/blast-radius-graph/${nodeId}`),
 };
 
 export default api;

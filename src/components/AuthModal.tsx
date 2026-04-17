@@ -1,4 +1,4 @@
-// components/AuthModal.tsx
+// Frontend/src/components/users/AuthModal.tsx
 // this page is for blur effect of sign in and sign up page
 
 import { useEffect, useRef, useState } from 'react';

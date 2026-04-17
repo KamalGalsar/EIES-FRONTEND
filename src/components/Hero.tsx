@@ -1,4 +1,5 @@
-//components/Hero.tsx
+// Frontend/src/components/users/Hero.tsx
+
 export default function Hero() {
   return (
     <section className="relative text-center text-black bg-white dark:text-white dark:bg-gray-900" id="signin">

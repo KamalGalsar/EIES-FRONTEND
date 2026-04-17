@@ -1,4 +1,4 @@
-// src/pages/admin/AuditLogs.tsx
+// Frontend/src/pages/admin/AuditLogs.tsx
 import { Filter, Download } from "lucide-react";
 
 export default function AuditLogs() {

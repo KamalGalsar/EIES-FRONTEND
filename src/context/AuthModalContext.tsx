@@ -1,4 +1,4 @@
-// context/AuthModalContext.tsx
+// Frontend/src/context/AuthModalContext.tsx
 // this page is for blur effect of sign in and sign up page
 
 import React, { createContext, useContext, useState, useCallback } from 'react';

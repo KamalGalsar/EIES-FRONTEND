@@ -1,3 +1,5 @@
+// Frontend/src/pages/users/Company.tsx
+
 export default function Company() {
   return (
     <div className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">

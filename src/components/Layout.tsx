@@ -1,4 +1,5 @@
-// components/Layout.tsx
+// Frontend/src/components/Layout.tsx
+
 import { Outlet, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuthModal } from "../context/AuthModalContext";

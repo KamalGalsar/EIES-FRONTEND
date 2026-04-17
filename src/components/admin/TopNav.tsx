@@ -1,4 +1,4 @@
-// components/admin/TopNav.tsx
+// Frontend/src/components/admin/TopNav.tsx
 import { useState, useRef, useEffect } from "react";
 import { Search, Bell, User, LogOut, Settings, ChevronLeft, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";

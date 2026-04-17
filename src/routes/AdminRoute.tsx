@@ -1,4 +1,5 @@
-//routes/AdminRoute.tsx
+// Frontend/src/routes/AdminRoute.tsx
+
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 

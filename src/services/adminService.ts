@@ -1,4 +1,5 @@
-// src/services/adminService.ts
+// Frontend/src/services/adminService.ts
+
 import apiClient from './apiClient';
 import type { AdminUser } from '../types/admin';
 

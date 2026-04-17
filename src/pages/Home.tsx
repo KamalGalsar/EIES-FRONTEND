@@ -1,4 +1,5 @@
-// pages/Home.tsx
+// Frontend/src/pages/users/Home.tsx
+
 import Hero from "../components/Hero";
 import Features from "../components/Features";
 import CallToAction from "../components/CallToAction";

@@ -1,4 +1,5 @@
-//components/ModalContext.tsx
+// Frontend/src/components/users/ModalContext.tsx
+
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 interface ModalContextType {

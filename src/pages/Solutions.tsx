@@ -1,4 +1,5 @@
-// pages/Solutions.tsx
+// Frontend/src/pages/users/Solutions.tsx
+
 export default function Solutions() {
   return (
     <div className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">

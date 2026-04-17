@@ -1,4 +1,4 @@
-// src/types/users.ts
+// Frontend/src/types/users.ts
 
 export interface UserRiskNode {
   id: string;
@@ -57,6 +57,16 @@ export interface GraphEdge {
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+export interface DirectoryEntry {
+  id: string;
+  name: string;
+  email: string;
+  type: "user" | "group";
+  riskScore?: number;
+  blastRadius?: number;
+  status?: string;
 }
 
 export interface UserProfile {
