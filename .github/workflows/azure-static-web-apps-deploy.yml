@@ -21,7 +21,6 @@ jobs:
         with:
           submodules: true
       
-      # No npm install, no build – we use the prebuilt dist folder
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -29,10 +28,11 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: '/'
-          output_location: 'dist'
+          app_location: 'dist'          # <-- Use the built folder as the web root
+          output_location: ''           # <-- Empty because app_location is the final content
           skip_app_build: true
           skip_api_build: true
+          config_file_location: '/'     # <-- Tells Azure to find staticwebapp.config.json in the root
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
