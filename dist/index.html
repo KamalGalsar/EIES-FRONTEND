@@ -1,0 +1,30 @@
+<!-- Frontend/index.html -->
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="eies.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EIES — Entra Identity Exposure Sentinel</title>
+
+    <!-- Initial theme: localStorage -> system -> default dark -->
+    <script>
+      (function () {
+        try {
+          const ls = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const theme = ls || (prefersDark ? 'dark' : 'light');
+          const root = document.documentElement;
+          if (theme === 'dark') root.classList.add('dark');
+          else root.classList.remove('dark');
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-DN3obbF6.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BQEIg9cB.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
