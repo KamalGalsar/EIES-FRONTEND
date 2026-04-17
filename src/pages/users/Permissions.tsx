@@ -11,6 +11,8 @@ interface Finding {
   affectedEntityName: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+
 export default function Permissions() {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,13 @@ export default function Permissions() {
     const fetchFindings = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:5268/api/Toxic/findings");
+        const response = await fetch(`${API_BASE_URL}/api/Toxic/findings`, {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+            'Content-Type': 'application/json',
+          },
+        });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setFindings(data);

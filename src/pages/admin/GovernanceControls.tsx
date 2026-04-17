@@ -20,6 +20,8 @@ interface QueueItem {
   blastRadius: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+
 export default function GovernanceControls() {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,12 +29,18 @@ export default function GovernanceControls() {
   const [pimEnabled, setPimEnabled] = useState(true);
   const [dualApprovalEnabled, setDualApprovalEnabled] = useState(false);
 
-  // Fetch findings from API
+  // Fetch findings from API with auth
   useEffect(() => {
     const fetchFindings = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5268/api/Toxic/findings');
+        const response = await fetch(`${API_BASE_URL}/api/Toxic/findings`, {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+            'Content-Type': 'application/json',
+          },
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -50,12 +58,15 @@ export default function GovernanceControls() {
     fetchFindings();
   }, []);
 
-  // Transform findings into queue items
+  // Separate findings for the two sections (lifted from Permissions page)
+  const orphanedSPs = findings.filter((f) => f.title === "Orphaned service principal");
+  const toxicPermissions = findings.filter((f) => f.title === "Dangerous app permission combination");
+
+  // Transform findings into queue items (for review queue)
   const queueItems: QueueItem[] = findings.map((finding) => {
     let permissionsText = '';
     let risk: QueueItem['risk'] = 'medium';
 
-    // Map severity to risk level
     if (finding.severity === 'High') {
       risk = 'critical';
     } else if (finding.severity === 'Medium') {
@@ -64,15 +75,9 @@ export default function GovernanceControls() {
       risk = 'low';
     }
 
-    // Parse description to extract relevant permission/owner info
     if (finding.title === 'Dangerous app permission combination') {
-      // Extract permissions part: "SP 'Name' has Permission1, Permission2."
       const match = finding.description.match(/has (.+?)\.$/);
-      if (match && match[1]) {
-        permissionsText = match[1];
-      } else {
-        permissionsText = 'Dangerous permissions detected';
-      }
+      permissionsText = match && match[1] ? match[1] : 'Dangerous permissions detected';
     } else if (finding.title === 'Orphaned service principal') {
       permissionsText = '⚠️ No owner – assign an owner to ensure accountability';
     } else {
@@ -89,18 +94,32 @@ export default function GovernanceControls() {
     };
   });
 
-  // Action handlers (replace with real API calls as needed)
+  // Helper for severity color (from Permissions page)
+  const getSeverityColor = (severity: string) => {
+    switch (severity.toLowerCase()) {
+      case "high":
+        return "bg-red-500";
+      case "medium":
+        return "bg-yellow-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  // Format toxic description (from Permissions page)
+  const formatToxicDescription = (description: string) => {
+    const match = description.match(/has (.+?)\.$/);
+    return match && match[1] ? match[1] : description;
+  };
+
+  // Action handlers (replace with real API calls)
   const handleApprove = (item: QueueItem) => {
     console.log(`Approved: ${item.name}`, item);
-    // Example: call remediation endpoint
-    // fetch('/api/remediate/approve', { method: 'POST', body: JSON.stringify({ id: item.id }) });
     alert(`✅ Approved remediation for "${item.name}". (Demo action)`);
   };
 
   const handleRevoke = (item: QueueItem) => {
     console.log(`Revoke access for: ${item.name}`, item);
-    // Example: call revocation endpoint
-    // fetch('/api/remediate/revoke', { method: 'POST', body: JSON.stringify({ id: item.id }) });
     alert(`🔒 Revoked excessive permissions for "${item.name}". (Demo action)`);
   };
 
@@ -144,12 +163,101 @@ export default function GovernanceControls() {
         </div>
       </div>
 
-      {/* Unhealthy Permission Review Queue */}
+      {/* Section 1: Orphaned Service Principals (lifted from Permissions page) */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Orphaned Service Principals (No Owner)
+            </h3>
+            <span className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded-full">
+              {orphanedSPs.length}
+            </span>
+          </div>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+            Loading findings...
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center text-red-600 dark:text-red-400">{error}</div>
+        ) : orphanedSPs.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            No orphaned service principals found. All service principals have an owner.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {orphanedSPs.map((sp) => (
+              <div key={sp.affectedEntityId} className="p-4">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${getSeverityColor(sp.severity)}`}></span>
+                  <h4 className="text-gray-900 dark:text-white font-medium">{sp.affectedEntityName}</h4>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">{sp.description}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-4">
+                  💡 Remediation: {sp.remediation}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Section 2: Toxic Permissions (lifted from Permissions page) */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Toxic Permissions (Dangerous Combinations)
+            </h3>
+            <span className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded-full">
+              {toxicPermissions.length}
+            </span>
+          </div>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+            Loading findings...
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center text-red-600 dark:text-red-400">{error}</div>
+        ) : toxicPermissions.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            No dangerous permission combinations detected.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {toxicPermissions.map((perm) => (
+              <div key={perm.affectedEntityId} className="p-4">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${getSeverityColor(perm.severity)}`}></span>
+                  <h4 className="text-gray-900 dark:text-white font-medium">{perm.affectedEntityName}</h4>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">
+                  <span className="font-mono text-xs break-all">{formatToxicDescription(perm.description)}</span>
+                </p>
+                {perm.blastRadius && perm.blastRadius !== "N/A" && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-4">
+                    💥 Blast radius: {perm.blastRadius}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-4">
+                  🔧 Remediation: {perm.remediation}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Section 3: Unhealthy Permission Review Queue (original from GovernanceControls) */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Unhealthy Permission Review Queue</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Based on findings from the Toxic API
+            Based on findings from the Toxic API – actions to approve or revoke
           </p>
         </div>
 
@@ -161,9 +269,7 @@ export default function GovernanceControls() {
         )}
 
         {error && (
-          <div className="p-8 text-center text-red-600 dark:text-red-400">
-            {error}
-          </div>
+          <div className="p-8 text-center text-red-600 dark:text-red-400">{error}</div>
         )}
 
         {!loading && !error && queueItems.length === 0 && (
