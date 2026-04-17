@@ -20,7 +20,43 @@ interface QueueItem {
   blastRadius: string;
 }
 
+interface CachedFindings {
+  findings: Finding[];
+  timestamp: number;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+const CACHE_KEY = "governance_findings_cache";
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Load findings from cache
+const loadFromCache = (): Finding[] | null => {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data: CachedFindings = JSON.parse(cached);
+    if (Date.now() - data.timestamp > CACHE_TTL_MS) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data.findings;
+  } catch {
+    return null;
+  }
+};
+
+// Save findings to cache
+const saveToCache = (findings: Finding[]) => {
+  try {
+    const cacheData: CachedFindings = {
+      findings,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (e) {
+    console.warn("Failed to cache governance findings", e);
+  }
+};
 
 export default function GovernanceControls() {
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -29,9 +65,18 @@ export default function GovernanceControls() {
   const [pimEnabled, setPimEnabled] = useState(true);
   const [dualApprovalEnabled, setDualApprovalEnabled] = useState(false);
 
-  // Fetch findings from API with auth
+  // Fetch findings from API with cache
   useEffect(() => {
     const fetchFindings = async () => {
+      // Check cache first
+      const cached = loadFromCache();
+      if (cached) {
+        setFindings(cached);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
       try {
         setLoading(true);
         const response = await fetch(`${API_BASE_URL}/api/Toxic/findings`, {
@@ -46,6 +91,7 @@ export default function GovernanceControls() {
         }
         const data = await response.json();
         setFindings(data);
+        saveToCache(data);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch findings:', err);

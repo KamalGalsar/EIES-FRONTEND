@@ -11,7 +11,43 @@ interface Finding {
   affectedEntityName: string;
 }
 
+interface CachedFindings {
+  findings: Finding[];
+  timestamp: number;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+const CACHE_KEY = "toxic_findings_cache";
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Load findings from cache
+const loadFromCache = (): Finding[] | null => {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data: CachedFindings = JSON.parse(cached);
+    if (Date.now() - data.timestamp > CACHE_TTL_MS) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data.findings;
+  } catch {
+    return null;
+  }
+};
+
+// Save findings to cache
+const saveToCache = (findings: Finding[]) => {
+  try {
+    const cacheData: CachedFindings = {
+      findings,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (e) {
+    console.warn("Failed to cache findings", e);
+  }
+};
 
 export default function Permissions() {
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -20,6 +56,15 @@ export default function Permissions() {
 
   useEffect(() => {
     const fetchFindings = async () => {
+      // Check cache first
+      const cached = loadFromCache();
+      if (cached) {
+        setFindings(cached);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
       try {
         setLoading(true);
         const response = await fetch(`${API_BASE_URL}/api/Toxic/findings`, {
@@ -32,6 +77,7 @@ export default function Permissions() {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setFindings(data);
+        saveToCache(data);
         setError(null);
       } catch (err) {
         console.error("Failed to fetch findings:", err);
@@ -60,14 +106,10 @@ export default function Permissions() {
     }
   };
 
-  // Helper to format description for toxic permissions (extract permission list)
+  // Helper to format description for toxic permissions
   const formatToxicDescription = (description: string) => {
-    // description format: "SP 'Name' has Permission1, Permission2."
     const match = description.match(/has (.+?)\.$/);
-    if (match && match[1]) {
-      return match[1];
-    }
-    return description;
+    return match && match[1] ? match[1] : description;
   };
 
   return (
@@ -89,7 +131,7 @@ export default function Permissions() {
 
       {!loading && !error && (
         <>
-          {/* Partition 1: Orphaned Service Principals */}
+          {/* Orphaned Service Principals */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -111,9 +153,7 @@ export default function Permissions() {
                       <span className={`w-2 h-2 rounded-full ${getSeverityColor(sp.severity)}`}></span>
                       <h4 className="text-gray-900 dark:text-white font-medium">{sp.affectedEntityName}</h4>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">
-                      {sp.description} {/* e.g., "SP '...' has no owner." */}
-                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">{sp.description}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-4">
                       💡 Remediation: {sp.remediation}
                     </p>
@@ -123,7 +163,7 @@ export default function Permissions() {
             )}
           </div>
 
-          {/* Partition 2: Toxic Permissions (Dangerous combinations) */}
+          {/* Toxic Permissions */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
