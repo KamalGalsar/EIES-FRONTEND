@@ -20,19 +20,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268
 interface GraphNode {
   id: string;
   label: string;
-  type: "user" | "group" | "tenant";
+  type: "user" | "group" | "tenant" | "azureRole" | "subscription" | "resourceGroup" | "crossTenant" | string;
 }
 
 interface GraphEdge {
   from: string;
   to: string;
   type: string;
+  label?: string;
 }
 
 interface NormalisedEdge {
   source: string;
   target: string;
   rawType: string;
+  label?: string;
 }
 
 interface HierarchyResult {
@@ -49,22 +51,23 @@ interface HierarchyResult {
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const NODE_WIDTH    = 160;
-const NODE_HEIGHT   = 50;
-const TENANT_WIDTH  = 200;
-const LEVEL_HEIGHT  = 200;
-const TOP_PADDING   = 80;
+const NODE_WIDTH = 160;
+const NODE_HEIGHT = 50;
+const TENANT_WIDTH = 200;
+const SUBSCRIPTION_WIDTH = 200;
+const LEVEL_HEIGHT = 200;
+const TOP_PADDING = 80;
 
 function getGapForCount(count: number): number {
-  if (count <= 2)  return 100;
-  if (count <= 4)  return 140;
-  if (count <= 8)  return 180;
+  if (count <= 2) return 100;
+  if (count <= 4) return 140;
+  if (count <= 8) return 180;
   if (count <= 14) return 220;
   return 260;
 }
 
 // ---------------------------------------------------------------------------
-// Styling
+// Styling (extended with azureRole and subscription)
 // ---------------------------------------------------------------------------
 
 const getNodeStyle = (type: string) => {
@@ -104,13 +107,50 @@ const getNodeStyle = (type: string) => {
         width: NODE_WIDTH,
         borderRadius: "20px",
       };
+    case "azureRole":
+      return {
+        ...base,
+        background: "#B45309",
+        borderColor: "#F59E0B",
+        width: NODE_WIDTH,
+        borderRadius: "8px",
+      };
+    case "subscription":
+      return {
+        ...base,
+        background: "#047857",
+        borderColor: "#10B981",
+        width: SUBSCRIPTION_WIDTH,
+        borderRadius: "4px",
+        fontSize: "13px",
+      };
+    case "resourceGroup":
+      return {
+        ...base,
+        background: "#6D28D9",
+        borderColor: "#A78BFA",
+        width: NODE_WIDTH,
+        borderRadius: "6px",
+      };
+    case "crossTenant":
+      return {
+        ...base,
+        background: "#991B1B",
+        borderColor: "#F87171",
+        width: NODE_WIDTH,
+        borderRadius: "4px",
+        fontSize: "11px",
+      };
     default:
-      return { ...base, width: NODE_WIDTH };
+      return { ...base, width: NODE_WIDTH, background: "#374151", borderColor: "#6B7280" };
   }
 };
 
 const getNodeDimensions = (type: string): { width: number; height: number } => {
   if (type === "tenant") return { width: TENANT_WIDTH, height: NODE_HEIGHT };
+  if (type === "subscription") return { width: SUBSCRIPTION_WIDTH, height: NODE_HEIGHT };
+  if (type === "resourceGroup") return { width: 140, height: 44 };
+  if (type === "crossTenant") return { width: 140, height: 40 };
   return { width: NODE_WIDTH, height: NODE_HEIGHT };
 };
 
@@ -119,12 +159,7 @@ const getNodeDimensions = (type: string): { width: number; height: number } => {
 // ---------------------------------------------------------------------------
 
 function detectAndNormaliseEdges(rawEdges: GraphEdge[], rootId: string): GraphEdge[] {
-  const tenantAsParent = rawEdges.filter((e) => e.to === rootId).length;
-  const tenantAsChild  = rawEdges.filter((e) => e.from === rootId).length;
-  if (tenantAsParent === 0 && tenantAsChild > 0) {
-    console.warn("Edge direction inverted — swapping all edges.");
-    return rawEdges.map((e) => ({ from: e.to, to: e.from, type: e.type }));
-  }
+  // We no longer swap edges. We trust the backend's direction: Member -> Parent
   return rawEdges;
 }
 
@@ -137,18 +172,21 @@ function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   parentOf: Map<string, string[]>;
   childrenOf: Map<string, string[]>;
 } {
-  const parentOf   = new Map<string, string[]>();
+  const parentOf = new Map<string, string[]>();
   const childrenOf = new Map<string, string[]>();
   const edges: NormalisedEdge[] = [];
 
   for (const e of normalisedRaw) {
-    const parent = e.to;
-    const child  = e.from;
-    if (!parentOf.has(child)) parentOf.set(child, []);
-    parentOf.get(child)!.push(parent);
-    if (!childrenOf.has(parent)) childrenOf.set(parent, []);
-    childrenOf.get(parent)!.push(child);
-    edges.push({ source: parent, target: child, rawType: e.type });
+    const source = e.from;
+    const target = e.to;
+    // Semantically: Child (Member) -> Parent (Group/Tenant)
+    if (!parentOf.has(source)) parentOf.set(source, []);
+    parentOf.get(source)!.push(target);
+    
+    if (!childrenOf.has(target)) childrenOf.set(target, []);
+    childrenOf.get(target)!.push(source);
+    
+    edges.push({ source: source, target: target, rawType: e.type, label: e.label });
   }
   return { edges, parentOf, childrenOf };
 }
@@ -165,7 +203,7 @@ function computeDepths(rootId: string, parentOf: Map<string, string[]>): Map<str
     const cur = queue.shift()!;
     const curDepth = depth.get(cur)!;
     const children = Array.from(parentOf.entries())
-      .filter(([_, parents]) => parents.includes(cur))
+      .filter(([, parents]) => parents.includes(cur))
       .map(([child]) => child);
     for (const child of children) {
       const newDepth = curDepth + 1;
@@ -213,7 +251,7 @@ function adoptOrphans(
 }
 
 // ---------------------------------------------------------------------------
-// Step 5 — Compute subtree depth and size (for all nodes, including tenant)
+// Step 5 — Compute subtree depth and size (for all nodes)
 // ---------------------------------------------------------------------------
 
 function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
@@ -245,16 +283,12 @@ function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
     return { depth: maxDepth, size: totalSize };
   }
 
-  // Start from all nodes to ensure everyone is computed
   for (const node of childrenOf.keys()) dfs(node);
-  // Also handle nodes that are leaves but may not be keys in childrenOf
-  // (they are already covered because leaves have empty children list)
-
   return { subtreeDepth: memoDepth, subtreeSize: memoSize };
 }
 
 // ---------------------------------------------------------------------------
-// Step 6 — Center‑priority ordering for Level‑1 children (largest subtree in middle)
+// Step 6 — Center‑priority ordering for Level‑1 children
 // ---------------------------------------------------------------------------
 
 function centerBySubtreeSize(children: string[], subtreeSize: Map<string, number>): string[] {
@@ -291,7 +325,7 @@ function centerBySubtreeSize(children: string[], subtreeSize: Map<string, number
 // Step 7 — Master hierarchy builder
 // ---------------------------------------------------------------------------
 
-function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[]): HierarchyResult {
+function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[], createSyntheticEdges = true): HierarchyResult {
   const tenantNode = nodes.find(n => n.type === "tenant");
   if (!tenantNode) {
     console.error("No tenant node found.");
@@ -310,25 +344,23 @@ function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[]): HierarchyRes
   const normalisedRaw = detectAndNormaliseEdges(rawEdges, rootId);
   const { edges, parentOf, childrenOf } = buildMultiParentEdges(normalisedRaw);
   let depth = computeDepths(rootId, parentOf);
-  const syntheticEdges = adoptOrphans(new Set(nodes.map(n => n.id)), rootId, parentOf, childrenOf, edges);
-  depth = computeDepths(rootId, parentOf);
+  const syntheticEdges = createSyntheticEdges 
+    ? adoptOrphans(new Set(nodes.map(n => n.id)), rootId, parentOf, childrenOf, edges)
+    : new Set<string>();
+  if (createSyntheticEdges) {
+    depth = computeDepths(rootId, parentOf);
+  }
   const { subtreeDepth, subtreeSize } = computeSubtreeMetrics(childrenOf);
 
-  // Order level‑1 children by subtree size (largest in middle)
   const lvl1 = childrenOf.get(rootId) ?? [];
   const centered = centerBySubtreeSize(lvl1, subtreeSize);
-  console.log("Level-1 centered order (by subtree size):", centered.map(id => nodes.find(n => n.id === id)?.label));
   childrenOf.set(rootId, centered);
 
-  console.log(
-    `Hierarchy: ${depth.size}/${nodes.length} nodes, max depth ${Math.max(0, ...depth.values())}, ` +
-    `${syntheticEdges.size} synthetic edges.`
-  );
   return { edges, depth, syntheticEdges, childrenOf, parentOf, subtreeDepth, subtreeSize };
 }
 
 // ---------------------------------------------------------------------------
-// Step 8 — Positioning for DAG (preserving centered order for level‑1)
+// Step 8 — Positioning for DAG
 // ---------------------------------------------------------------------------
 
 function computePositions(
@@ -336,7 +368,7 @@ function computePositions(
   depthMap: Map<string, number>,
   childrenOf: Map<string, string[]>,
   parentOf: Map<string, string[]>,
-  rootId: string                    // NEW: tenant ID to get correct order
+  rootId: string
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
   const byLevel = new Map<number, string[]>();
@@ -357,38 +389,17 @@ function computePositions(
       continue;
     }
 
-    // For level 1, enforce the order from childrenOf (which was centered)
     if (lvl === 1 && rootId) {
       const orderedLevel1 = childrenOf.get(rootId) ?? [];
-      // Keep only those that are actually in this level (should be all)
       ids = orderedLevel1.filter(id => ids.includes(id));
-      console.log("Level-1 positioning order:", ids.map(id => nodes.find(n => n.id === id)?.data?.label));
     } else {
-      // For deeper levels, sort by average parent X
-      let allParentsSameX = true;
-      let firstParentX: number | null = null;
-      for (const id of ids) {
-        const parents = parentOf.get(id) ?? [];
-        for (const p of parents) {
-          const px = positions.get(p)?.x ?? 0;
-          if (firstParentX === null) firstParentX = px;
-          if (px !== firstParentX) {
-            allParentsSameX = false;
-            break;
-          }
-        }
-        if (!allParentsSameX) break;
-      }
-
-      if (!allParentsSameX) {
-        ids.sort((a, b) => {
-          const parentsA = parentOf.get(a) ?? [];
-          const parentsB = parentOf.get(b) ?? [];
-          const avgXa = parentsA.length ? parentsA.reduce((s, p) => s + (positions.get(p)?.x ?? 0), 0) / parentsA.length : 0;
-          const avgXb = parentsB.length ? parentsB.reduce((s, p) => s + (positions.get(p)?.x ?? 0), 0) / parentsB.length : 0;
-          return avgXa - avgXb;
-        });
-      }
+      ids.sort((a, b) => {
+        const parentsA = parentOf.get(a) ?? [];
+        const parentsB = parentOf.get(b) ?? [];
+        const avgXa = parentsA.length ? parentsA.reduce((s, p) => s + (positions.get(p)?.x ?? 0), 0) / parentsA.length : 0;
+        const avgXb = parentsB.length ? parentsB.reduce((s, p) => s + (positions.get(p)?.x ?? 0), 0) / parentsB.length : 0;
+        return avgXa - avgXb;
+      });
     }
 
     const gap = getGapForCount(ids.length);
@@ -428,38 +439,28 @@ function getLayoutedElements(
     };
   });
 
-  // Debug subtreeDepth values for groups
-  console.log("Subtree depths:",
-    Array.from(subtreeDepth.entries()).map(([id, d]) => {
-      const node = nodes.find(n => n.id === id);
-      return `${node?.data?.label ?? id}: ${d}`;
-    })
-  );
+  // Since syntheticEdges is always empty, just use simple styling for all edges
+    const enhancedEdges = edges.map(edge => {
+      const targetDepth = subtreeDepth.get(edge.target) ?? 0;
+      const isDeepSubtree = edge.source === tenantId && targetDepth >= 2;
 
-  const enhancedEdges = edges.map(edge => {
-    const isSynthetic = syntheticEdges.has(`${edge.source}->${edge.target}`);
-    const targetDepth = subtreeDepth.get(edge.target) ?? 0;
-    const isDeepSubtree = edge.source === tenantId && targetDepth >= 2;
+      const strokeColor = isDeepSubtree ? "#FF8C00" : "#3B82F6";
+      const strokeWidth = isDeepSubtree ? 2.5 : 2;
 
-    if (edge.source === tenantId) {
-      console.log(`Edge ${edge.source} → ${edge.target} (depth=${targetDepth}) -> deep? ${isDeepSubtree}`);
-    }
-
-    const strokeColor = isSynthetic ? "#F59E0B" : isDeepSubtree ? "#FF8C00" : "#3B82F6";
-    const strokeWidth = isSynthetic ? 1.5 : isDeepSubtree ? 2.5 : 2;
-    return {
-      ...edge,
-      style: {
-        stroke: strokeColor,
-        strokeWidth,
-        strokeDasharray: isSynthetic ? "4 4" : undefined,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: strokeColor,
-      },
-    };
-  });
+      return {
+        ...edge,
+        style: { stroke: strokeColor, strokeWidth },
+        label: edge.label || "Member Of",
+        labelStyle: { fill: "#00f2ff", fontSize: "14px", fontWeight: 800 },
+        labelShowBg: true,
+        labelBgStyle: { fill: "#000000", fillOpacity: 1, rx: 4 },
+        labelBgPadding: [6, 4],
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: strokeColor,
+        },
+      };
+    });
 
   return { nodes: layoutedNodes, edges: enhancedEdges };
 }
@@ -511,17 +512,27 @@ export default function SimpleAllNodesGraph() {
     const fetchGraph = async () => {
       try {
         setLoading(true);
+        
         const res = await fetch(`${API_BASE_URL}/api/entra/graph-full`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: { nodes: GraphNode[]; edges: GraphEdge[] } = await res.json();
-        console.log("Raw API data:", data);
 
-        const hierarchy = buildHierarchy(data.nodes, data.edges);
-        const { edges: normEdges, depth, syntheticEdges, childrenOf, parentOf, subtreeDepth, subtreeSize } = hierarchy;
+        // Filter to only users, groups, and tenant as requested
+        const filteredNodes = data.nodes.filter(n => ["user", "group", "tenant"].includes(n.type));
+        const nodeIds = new Set(filteredNodes.map(n => n.id));
+        
+        // Show only direct membership and role relationships
+        const filteredEdges = data.edges.filter(e => 
+          nodeIds.has(e.from) && nodeIds.has(e.to) &&
+          ["memberOf", "hasRole"].includes(e.type)
+        );
+        
+        const hierarchy = buildHierarchy(filteredNodes, filteredEdges, false);
+        const { edges: normEdges, depth, childrenOf, parentOf, subtreeDepth } = hierarchy;
 
-        const tenantId = data.nodes.find(n => n.type === "tenant")?.id ?? "default-directory";
+        const tenantId = filteredNodes.find(n => n.type === "tenant")?.id ?? "default-directory";
 
-        const flowNodes: Node[] = data.nodes.map(node => ({
+        const flowNodes: Node[] = filteredNodes.map(node => ({
           id: node.id,
           type: "default",
           data: { label: node.label, type: node.type },
@@ -534,10 +545,11 @@ export default function SimpleAllNodesGraph() {
           id: `e${++counter}-${e.source}-${e.target}`,
           source: e.source,
           target: e.target,
-          animated: !syntheticEdges.has(`${e.source}->${e.target}`),
+          label: e.label,
+          animated: false,
         }));
 
-        const { nodes: ln, edges: le } = getLayoutedElements(
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
           flowNodes,
           flowEdges,
           normEdges,
@@ -545,15 +557,15 @@ export default function SimpleAllNodesGraph() {
           childrenOf,
           parentOf,
           subtreeDepth,
-          syntheticEdges,
+          new Set<string>(),
           tenantId
         );
 
         const cw = containerRef.current?.clientWidth ?? window.innerWidth;
         const ch = containerRef.current?.clientHeight ?? window.innerHeight;
-        setViewport(deriveViewport(ln, cw, ch));
-        setNodes(ln);
-        setEdges(le);
+        setViewport(deriveViewport(layoutedNodes, cw, ch));
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
       } catch (err) {
         console.error(err);
         setError(err instanceof Error ? err.message : "Unknown error");

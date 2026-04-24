@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -236,9 +236,8 @@ export default function Directory() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredEntries.map((entry) => (
-                <>
+                <React.Fragment key={entry.id}>
                   <tr
-                    key={entry.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
                     onClick={() => handleRowClick(entry.id)}
                   >
@@ -289,7 +288,7 @@ export default function Directory() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

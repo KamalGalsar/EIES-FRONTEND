@@ -18,17 +18,121 @@ export const userApi = {
   getAll: () => api.get('/admin/users'),
   getCurrent: () => api.get('/admin/me'),
   getAvailableUsers: () => api.get('/admin/available-users'),
-  create: (data: { email: string; role: string; scope: string }) => 
+  create: (data: { email: string; role: string; scope: string }) =>
     api.post('/admin/users', data),
-  update: (id: number, data: Partial<{ role: string; scope: string; status: string }>) => 
+  update: (id: number, data: Partial<{ role: string; scope: string; status: string }>) =>
     api.put(`/admin/users/${id}`, data),
   delete: (id: number) => api.delete(`/admin/users/${id}`),
 };
 
-// Optional: Add to api.ts
+// Toxic API
 export const toxicApi = {
   getBlastRadiusGraph: (nodeId: string) =>
     api.get(`/toxic/blast-radius-graph/${nodeId}`),
 };
+
+// GNN API - New endpoints for EIES
+export const gnnApi = {
+  // Health check
+  health: () => api.get('/gnn/health'),
+
+  // Risk prediction
+  predict: (graphData?: object) =>
+    graphData ? api.post('/gnn/predict', graphData) : api.post('/gnn/predict'),
+
+  // Blast radius with path visualization
+  predictBlastRadius: (sourceNodeId: string, graphData?: object) =>
+    api.post('/gnn/blast-radius', { sourceNodeId, graph: graphData }),
+
+  // Remediation
+  createRemediation: (data: RemediationRequest) =>
+    api.post('/gnn/remediate', data),
+
+  getPendingRemediations: () =>
+    api.get('/gnn/remediate/pending'),
+
+  approveRemediation: (requestId: string, approvedBy: string) =>
+    api.post(`/gnn/remediate/${requestId}/approve?approvedBy=${approvedBy}`),
+
+  executeRemediation: (requestId: string) =>
+    api.post(`/gnn/remediate/${requestId}/execute`),
+
+  getRemediationLogs: (limit: number = 100) =>
+    api.get(`/gnn/remediate/log?limit=${limit}`),
+
+  simulateRemediation: (data: RemediationRequest) =>
+    api.post('/gnn/simulate-remediate', data),
+};
+
+export interface RemediationRequest {
+  nodeIds: string[];
+  actions: string[];
+  severity: string;
+  reason: string;
+  requestedBy: string;
+  autoApprove?: boolean;
+}
+
+export interface BlastRadiusResult {
+  source_node_id: string;
+  source_display_name: string;
+  source_node_type: string;
+  severity_score: number;
+  max_hops: number;
+  affected_count: number;
+  attack_paths: AttackPath[];
+  impact: ResourceImpact;
+  visualization: VisualizationData;
+}
+
+export interface AttackPath {
+  path_id: number;
+  nodes: string[];
+  edge_types: string[];
+  risk_score: number;
+  hop_count: number;
+}
+
+export interface ResourceImpact {
+  users: number;
+  groups: number;
+  roles: number;
+  servicePrincipals: number;
+  applications: number;
+  devices: number;
+  total: number;
+  critical: number;
+  high: number;
+}
+
+export interface VisualizationData {
+  nodes: VisualizationNode[];
+  edges: VisualizationEdge[];
+}
+
+export interface VisualizationNode {
+  id: string;
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    node_type: string;
+    risk_score: number;
+    is_source: boolean;
+  };
+  type: string;
+}
+
+export interface VisualizationEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  animated: boolean;
+  label: string;
+  style?: {
+    stroke: string;
+    strokeWidth: number;
+  };
+}
 
 export default api;
