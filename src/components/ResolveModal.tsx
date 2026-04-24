@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-/* ---------- Types (reused from Permissions) ---------- */
+/* ---------- Types ---------- */
 export interface OwnerDetail {
   upn: string;
   objectId: string;
@@ -22,8 +22,9 @@ export interface SpAnalysisItem {
 
 interface PermissionDto {
   id: string;
-  type: string; // "AppRole" or "Delegated"
+  type: string;           // "AppRole" or "Delegated"
   permission: string;
+  isProtected?: boolean;  // true if managed by Microsoft
 }
 
 interface UserDto {
@@ -33,7 +34,7 @@ interface UserDto {
   accountEnabled?: boolean;
 }
 
-/* ---------- Icons (matching your existing set) ---------- */
+/* ---------- Icons ---------- */
 const Icons = {
   close: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -60,39 +61,32 @@ const Icons = {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
-/* ---------- Helper: getUserToken ---------- */
 function getToken() {
   return localStorage.getItem("token") || "";
 }
 
-/* ---------- Component ---------- */
 interface Props {
   sp: SpAnalysisItem;
   onClose: () => void;
-  onUpdated?: () => void; // callback to refresh main list
+  onUpdated?: () => void;
 }
 
 export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
-  // States for API data
   const [users, setUsers] = useState<UserDto[]>([]);
   const [permissions, setPermissions] = useState<PermissionDto[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingPerms, setLoadingPerms] = useState(true);
 
-  // UI state
   const [selectedOwnerId, setSelectedOwnerId] = useState("");
   const [ownerActionLoading, setOwnerActionLoading] = useState(false);
   const [selectedPerms, setSelectedPerms] = useState<Set<string>>(new Set());
   const [revokeLoading, setRevokeLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Current owners from SP data
   const currentOwners = sp.ownerDetails || [];
 
-  // Fetch initial data
   const fetchData = useCallback(async () => {
     setMessage(null);
-    // Fetch users
     setLoadingUsers(true);
     try {
       const res = await fetch(`${API_BASE}/api/Entra/users`, {
@@ -108,7 +102,6 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
       setLoadingUsers(false);
     }
 
-    // Fetch permission IDs for this SP
     setLoadingPerms(true);
     try {
       const res = await fetch(
@@ -150,7 +143,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
       if (res.ok) {
         setMessage({ type: "success", text: "Owner added successfully." });
         setSelectedOwnerId("");
-        onUpdated?.(); // refresh main list if needed
+        onUpdated?.();
       } else {
         const err = await res.json();
         setMessage({ type: "error", text: err.error || "Failed to add owner." });
@@ -204,6 +197,11 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     let errors = 0;
     for (const perm of permissions) {
       if (selectedPerms.has(perm.id)) {
+        // Skip protected permissions (should never be selected, but safety)
+        if (perm.isProtected) {
+          errors++;
+          continue;
+        }
         try {
           const res = await fetch(
             `${API_BASE}/api/entra/service-principals/${sp.spId}/permissions/${perm.id}?type=${perm.type}`,
@@ -213,7 +211,6 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
             }
           );
           if (res.ok) {
-            // remove from UI list
             setPermissions(prev => prev.filter(p => p.id !== perm.id));
           } else {
             errors++;
@@ -269,11 +266,10 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
 
         {/* Content */}
         <div className="p-4 space-y-6">
-          {/* ── Owner Management ── */}
+          {/* Owner Management */}
           <section>
             <h3 className="text-md font-medium text-gray-900 dark:text-white mb-2">Owners</h3>
 
-            {/* Current owners */}
             {currentOwners.length > 0 ? (
               <ul className="space-y-2 mb-3">
                 {currentOwners.map(owner => (
@@ -305,7 +301,6 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
               </p>
             )}
 
-            {/* Add owner */}
             <div className="flex gap-2">
               <select
                 value={selectedOwnerId}
@@ -332,7 +327,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
             {loadingUsers && <p className="text-xs text-gray-400 mt-1">Loading users...</p>}
           </section>
 
-          {/* ── Permission Revocation ── */}
+          {/* Permission Revocation */}
           <section>
             <h3 className="text-md font-medium text-gray-900 dark:text-white mb-2">Permissions</h3>
             {loadingPerms ? (
@@ -353,26 +348,49 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
                 </div>
 
                 <ul className="space-y-1 mb-3">
-                  {permissions.map(p => (
-                    <li key={p.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`perm-${p.id}`}
-                        checked={selectedPerms.has(p.id)}
-                        onChange={() => togglePerm(p.id)}
-                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                      />
-                      <label
-                        htmlFor={`perm-${p.id}`}
-                        className="text-sm text-gray-900 dark:text-white font-mono break-all cursor-pointer"
-                      >
-                        {p.permission}
-                        <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                          ({p.type})
-                        </span>
-                      </label>
-                    </li>
-                  ))}
+                  {permissions.map(p => {
+                    // Split Delegated scopes for display
+                    const scopes = p.type === "Delegated"
+                      ? p.permission.split(/\s+/).filter(Boolean)
+                      : [p.permission];
+
+                    // Protected permissions → disabled checkbox + note
+                    if (p.isProtected) {
+                      return (
+                        <li key={p.id} className="flex items-center gap-2 opacity-50">
+                          <input
+                            type="checkbox"
+                            disabled
+                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-not-allowed"
+                          />
+                          <label className="text-sm text-gray-500 dark:text-gray-400 font-mono break-all">
+                            {scopes.join(", ")}
+                            <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">({p.type})</span>
+                            <span className="ml-2 text-xs text-red-500">— Managed by Microsoft</span>
+                          </label>
+                        </li>
+                      );
+                    }
+
+                    return (
+                      <li key={p.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`perm-${p.id}`}
+                          checked={selectedPerms.has(p.id)}
+                          onChange={() => togglePerm(p.id)}
+                          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label
+                          htmlFor={`perm-${p.id}`}
+                          className="text-sm text-gray-900 dark:text-white font-mono break-all cursor-pointer"
+                        >
+                          {scopes.join(", ")}
+                          <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">({p.type})</span>
+                        </label>
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 <button
