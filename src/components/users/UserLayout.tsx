@@ -5,50 +5,101 @@ import Sidebar from "./Sidebar";
 import TopNav from "./TopNav";
 import { Search } from "lucide-react";
 import { RemediationModal } from "./Modals";
-import { MOCK_USER_SUMMARY } from "../../types/users";
 import { useRemediation } from "../../context/RemediationContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+
+// Risk classification based on score (after multiplying by 10)
+// mapping: score < 4 → Low, 4 ≤ score < 6 → Medium, 6 ≤ score < 10 → High, score ≥ 10 → Critical
+const getRiskLevel = (score: number): string => {
+  if (score >= 10) return "Critical";
+  if (score >= 6) return "High";
+  if (score >= 4) return "Medium";
+  return "Low";
+};
 
 export default function UserLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { showRemediationModal, isModalOpen, selectedAction, remediationStatus, closeModal, setRemediationStatus } = useRemediation();
   
-  // Dynamic state for dashboard stats
+  // Dynamic dashboard stats
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
   const [activeGroups, setActiveGroups] = useState<number | null>(null);
+  const [riskScore, setRiskScore] = useState<number | null>(null);        // raw score (0-10)
+  const [riskLevel, setRiskLevel] = useState<string>("Loading...");
+  const [userName, setUserName] = useState<string>("Loading...");
   const [loading, setLoading] = useState(true);
 
-  // Fetch users and groups on mount
+  // Fetch all required data on mount
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const [usersRes, groupsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/Entra/users`),
-          fetch(`${API_BASE_URL}/api/Entra/groups`),
+        // Fetch users, groups, average blast radius (risk), and current user info in parallel
+        const [usersRes, groupsRes, avgBlastRes, currentUserRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/Entra/users`, {
+            credentials: "include",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+          }),
+          fetch(`${API_BASE_URL}/api/Entra/groups`, {
+            credentials: "include",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+          }),
+          fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`, {
+            credentials: "include",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+          }),
+          fetch(`${API_BASE_URL}/api/Entra/me`, {  // Assumes backend provides current user info
+            credentials: "include",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+          }).catch(() => null) // optional: fallback if endpoint missing
         ]);
-        
+
+        // Users
         if (usersRes.ok) {
           const users = await usersRes.json();
           setTotalUsers(users.length);
         } else {
           console.error("Failed to fetch users");
         }
-        
+
+        // Groups
         if (groupsRes.ok) {
           const groups = await groupsRes.json();
           setActiveGroups(groups.length);
         } else {
           console.error("Failed to fetch groups");
         }
+
+        // Risk score (average blast radius)
+        if (avgBlastRes.ok) {
+          const avgBlastData = await avgBlastRes.json();
+          const avgBlastFraction = avgBlastData.averageBlastRadius; // fraction between 0 and 1
+          const computedScore = avgBlastFraction * 10;               // scale to 0-10
+          setRiskScore(computedScore);
+          setRiskLevel(getRiskLevel(computedScore));
+        } else {
+          console.error("Failed to fetch risk score");
+          setRiskLevel("Unavailable");
+        }
+
+        // Current user name (optional, fallback to "Security Admin")
+        if (currentUserRes && currentUserRes.ok) {
+          const userData = await currentUserRes.json();
+          setUserName(userData.displayName || userData.userPrincipalName || "Azure Admin");
+        } else {
+          setUserName("Security Admin");
+        }
+
       } catch (err) {
-        console.error("Error fetching stats:", err);
+        console.error("Error fetching dashboard data:", err);
+        setRiskLevel("Error");
+        setUserName("Azure Admin");
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchStats();
+
+    fetchDashboardData();
   }, []);
 
   const handleEmergency = () => {
@@ -61,13 +112,14 @@ export default function UserLayout() {
       const response = await fetch(`${API_BASE_URL}/api/Remediation/trigger-remediation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           action: selectedAction,
           timestamp: new Date().toISOString(),
           context: {
             source: "emergency_button",
-            user: MOCK_USER_SUMMARY.userName,
-            riskScore: MOCK_USER_SUMMARY.riskScore,
+            user: userName,
+            riskScore: riskScore !== null ? `${riskScore.toFixed(1)}/10` : "Unknown",
           },
         }),
       });
@@ -85,9 +137,15 @@ export default function UserLayout() {
     }
   };
 
+  const riskScoreDisplay = riskScore !== null ? `${riskScore.toFixed(1)}/10` : "--/10";
+  const riskLevelColor = 
+    riskLevel === "Critical" ? "text-red-700 dark:text-red-500" :
+    riskLevel === "High" ? "text-red-600 dark:text-red-400" :
+    riskLevel === "Medium" ? "text-yellow-600 dark:text-yellow-400" :
+    "text-green-600 dark:text-green-400";
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -98,7 +156,7 @@ export default function UserLayout() {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <TopNav
-        userName={MOCK_USER_SUMMARY.userName}
+        userName={userName}
         userRole="Identity"
         onEmergency={handleEmergency}
         onMenuClick={() => setSidebarOpen(true)}
@@ -106,7 +164,7 @@ export default function UserLayout() {
       
       {/* Top Summary Bar - sticky, with left margin on desktop */}
       <div className="sticky top-16 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm md:ml-64">
-        {/* Search bar - visible on mobile only */}
+        {/* Mobile search bar */}
         <div className="p-3 border-b border-gray-100 dark:border-gray-700 md:hidden">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -127,9 +185,8 @@ export default function UserLayout() {
                 <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Risk Score</span>
                 <div className="flex items-baseline gap-0.5 mt-0.5">
                   <span className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    {MOCK_USER_SUMMARY.riskScore}
+                    {loading ? "..." : riskScoreDisplay}
                   </span>
-                  <span className="text-xs text-gray-500">/100</span>
                 </div>
               </div>
 
@@ -137,8 +194,8 @@ export default function UserLayout() {
               <div className="flex flex-col">
                 <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Risk Level</span>
                 <div className="mt-0.5">
-                  <span className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
-                    {MOCK_USER_SUMMARY.riskLevel}
+                  <span className={`text-lg sm:text-xl font-bold ${riskLevelColor}`}>
+                    {loading ? "..." : riskLevel}
                   </span>
                 </div>
               </div>

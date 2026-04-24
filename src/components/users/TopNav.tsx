@@ -107,14 +107,14 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
             </div>
           </div>
 
-          {onEmergency && (
+          {/* {onEmergency && (
             <button
               onClick={onEmergency}
               className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
             >
               Remediate
             </button>
-          )}
+          )} */}
         </div>
 
         {/* Right section */}

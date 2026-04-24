@@ -1,4 +1,5 @@
 // components/users/Sidebar.tsx
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,10 +26,39 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Dynamic user data
+  // Dynamic user data from AuthContext
   const displayName = user?.name || user?.email?.split('@')[0] || 'Guest';
   const userRole = user?.role || 'Member';
-  const riskScore = user?.riskScore ?? 87;
+
+  // Dynamic risk score from backend
+  const [riskScore, setRiskScore] = useState<number | null>(null);
+  const [loadingRisk, setLoadingRisk] = useState(true);
+
+  // Fetch tenant risk score (average blast radius) on mount
+  useEffect(() => {
+    const fetchRiskScore = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`, {
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) throw new Error(`Failed to fetch risk score: ${response.status}`);
+        const data = await response.json();
+        const avgBlastFraction = data.averageBlastRadius; // fraction between 0 and 1
+        const computedScore = avgBlastFraction * 10;       // scale to 0-10
+        setRiskScore(computedScore);
+      } catch (err) {
+        console.error("Error fetching risk score for sidebar:", err);
+        setRiskScore(null);
+      } finally {
+        setLoadingRisk(false);
+      }
+    };
+    fetchRiskScore();
+  }, []);
 
   // Get initials: first letter of first name + first letter of last name
   const getInitials = (name: string) => {
@@ -58,6 +90,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
     return location.pathname.startsWith(path);
   };
+
+  // Format risk score for display
+  const riskScoreDisplay = loadingRisk
+    ? "Loading..."
+    : riskScore !== null
+    ? `${riskScore.toFixed(1)}/10`
+    : "Unavailable";
+
+  const riskScoreColor = riskScore !== null
+    ? riskScore >= 7
+      ? "text-red-600 dark:text-red-400"
+      : riskScore >= 4
+      ? "text-yellow-600 dark:text-yellow-400"
+      : "text-green-600 dark:text-green-400"
+    : "text-gray-500";
 
   return (
     <div className={`
@@ -91,7 +138,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div>
             <p className="text-gray-900 dark:text-white font-medium">{displayName}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{userRole}</p>
-            <p className="text-xs font-bold text-red-600 dark:text-red-400">Risk Score: {riskScore}</p>
+            <p className={`text-xs font-bold ${riskScoreColor}`}>
+              Risk Score: {riskScoreDisplay}
+            </p>
           </div>
         </div>
       </div>

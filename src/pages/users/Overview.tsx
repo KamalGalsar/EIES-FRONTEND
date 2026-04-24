@@ -258,8 +258,8 @@ export default function Overview() {
             </div>
             <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>3 pending actions</span>
-                <button className="text-blue-600 dark:text-blue-400 hover:underline">Apply all</button>
+                {/* <span>3 pending actions</span> */}
+                {/* <button className="text-blue-600 dark:text-blue-400 hover:underline">Apply all</button> */}
               </div>
             </div>
           </div>
