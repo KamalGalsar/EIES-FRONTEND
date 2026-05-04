@@ -1,3 +1,4 @@
+// Components/ResolveModal.tsx
 import { useState, useEffect, useCallback } from "react";
 
 /* ---------- Types ---------- */
@@ -22,9 +23,8 @@ export interface SpAnalysisItem {
 
 interface PermissionDto {
   id: string;
-  type: string;           // "AppRole" or "Delegated"
+  type: string;
   permission: string;
-  isProtected?: boolean;  // true if managed by Microsoft
 }
 
 interface UserDto {
@@ -57,12 +57,17 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
     </svg>
   ),
+  refresh: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+    </svg>
+  ),
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
 function getToken() {
-  return localStorage.getItem("token") || "";
+  return localStorage.getItem("accessToken") || "";
 }
 
 interface Props {
@@ -85,8 +90,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
 
   const currentOwners = sp.ownerDetails || [];
 
-  const fetchData = useCallback(async () => {
-    setMessage(null);
+  const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
       const res = await fetch(`${API_BASE}/api/Entra/users`, {
@@ -101,13 +105,14 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     } finally {
       setLoadingUsers(false);
     }
+  }, []);
 
+  const fetchPermissions = useCallback(async () => {
     setLoadingPerms(true);
     try {
-      const res = await fetch(
-        `${API_BASE}/api/entra/service-principals/${sp.spId}/permissions`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
+      const res = await fetch(`${API_BASE}/api/entra/service-principals/${sp.spId}/permissions`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       if (res.ok) {
         const data: PermissionDto[] = await res.json();
         setPermissions(data);
@@ -119,31 +124,33 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     }
   }, [sp.spId]);
 
+  const fetchData = useCallback(async () => {
+    await Promise.all([fetchUsers(), fetchPermissions()]);
+  }, [fetchUsers, fetchPermissions]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // ── Owner operations ──
+  // Owner operations
   const addOwner = async () => {
     if (!selectedOwnerId) return;
     setOwnerActionLoading(true);
     setMessage(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/api/entra/service-principals/${sp.spId}/owners`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getToken()}`,
-          },
-          body: JSON.stringify({ userId: selectedOwnerId }),
-        }
-      );
+      const res = await fetch(`${API_BASE}/api/entra/service-principals/${sp.spId}/owners`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ userId: selectedOwnerId }),
+      });
       if (res.ok) {
         setMessage({ type: "success", text: "Owner added successfully." });
         setSelectedOwnerId("");
         onUpdated?.();
+        await fetchPermissions(); // Refresh permissions (owners might affect permissions? but safe)
       } else {
         const err = await res.json();
         setMessage({ type: "error", text: err.error || "Failed to add owner." });
@@ -159,16 +166,14 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     setOwnerActionLoading(true);
     setMessage(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/api/entra/service-principals/${sp.spId}/owners/${userId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${getToken()}` },
-        }
-      );
+      const res = await fetch(`${API_BASE}/api/entra/service-principals/${sp.spId}/owners/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       if (res.ok) {
         setMessage({ type: "success", text: "Owner removed." });
         onUpdated?.();
+        await fetchPermissions();
       } else {
         const err = await res.json();
         setMessage({ type: "error", text: err.error || "Failed to remove owner." });
@@ -180,7 +185,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     }
   };
 
-  // ── Permission revocation ──
+  // Permission revocation
   const togglePerm = (id: string) => {
     setSelectedPerms(prev => {
       const next = new Set(prev);
@@ -194,43 +199,46 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     if (selectedPerms.size === 0) return;
     setRevokeLoading(true);
     setMessage(null);
-    let errors = 0;
+    let succeeded = 0;
+    let failed: { id: string; error: string }[] = [];
+
     for (const perm of permissions) {
       if (selectedPerms.has(perm.id)) {
-        // Skip protected permissions (should never be selected, but safety)
-        if (perm.isProtected) {
-          errors++;
-          continue;
-        }
         try {
           const res = await fetch(
             `${API_BASE}/api/entra/service-principals/${sp.spId}/permissions/${perm.id}?type=${perm.type}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${getToken()}` },
-            }
+            { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } }
           );
           if (res.ok) {
-            setPermissions(prev => prev.filter(p => p.id !== perm.id));
+            succeeded++;
           } else {
-            errors++;
+            const errorBody = await res.json();
+            failed.push({ id: perm.permission, error: errorBody.details || errorBody.error || "Unknown error" });
           }
-        } catch {
-          errors++;
+        } catch (err: any) {
+          failed.push({ id: perm.permission, error: err.message });
         }
       }
     }
+
     setSelectedPerms(new Set());
     setRevokeLoading(false);
-    if (errors > 0) {
-      setMessage({ type: "error", text: `Revoked some, but ${errors} failed.` });
+
+    // Refresh permissions from server to get the latest state
+    await fetchPermissions();
+    // Notify parent to refresh its cache and analysis data
+    onUpdated?.();
+
+    if (failed.length === 0) {
+      setMessage({ type: "success", text: `Successfully revoked ${succeeded} permission(s).` });
     } else {
-      setMessage({ type: "success", text: "Selected permissions revoked." });
-      onUpdated?.();
+      setMessage({
+        type: "error",
+        text: `Revoked ${succeeded}, but ${failed.length} failed. Details: ${failed.map(f => `${f.id}: ${f.error}`).join("; ")}`,
+      });
     }
   };
 
-  // ── Render ──
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
@@ -242,10 +250,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
               {sp.displayName}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-          >
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             {Icons.close}
           </button>
         </div>
@@ -264,19 +269,25 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
           </div>
         )}
 
-        {/* Content */}
         <div className="p-4 space-y-6">
+          {/* Refresh button */}
+          <div className="flex justify-end">
+            <button
+              onClick={fetchData}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              disabled={loadingPerms}
+            >
+              {Icons.refresh} Refresh permissions
+            </button>
+          </div>
+
           {/* Owner Management */}
           <section>
             <h3 className="text-md font-medium text-gray-900 dark:text-white mb-2">Owners</h3>
-
             {currentOwners.length > 0 ? (
               <ul className="space-y-2 mb-3">
                 {currentOwners.map(owner => (
-                  <li
-                    key={owner.objectId}
-                    className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded px-3 py-2"
-                  >
+                  <li key={owner.objectId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded px-3 py-2">
                     <div>
                       <span className="text-sm text-gray-900 dark:text-white">{owner.upn}</span>
                       {owner.directoryRoles.length > 0 && (
@@ -296,9 +307,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                No owners assigned.
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No owners assigned.</p>
             )}
 
             <div className="flex gap-2">
@@ -335,9 +344,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
                 {Icons.spinner} Loading permissions...
               </div>
             ) : permissions.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                No revocable permissions found.
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No revocable permissions found.</p>
             ) : (
               <>
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 mb-3 flex items-start gap-2">
@@ -349,29 +356,9 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
 
                 <ul className="space-y-1 mb-3">
                   {permissions.map(p => {
-                    // Split Delegated scopes for display
                     const scopes = p.type === "Delegated"
                       ? p.permission.split(/\s+/).filter(Boolean)
                       : [p.permission];
-
-                    // Protected permissions → disabled checkbox + note
-                    if (p.isProtected) {
-                      return (
-                        <li key={p.id} className="flex items-center gap-2 opacity-50">
-                          <input
-                            type="checkbox"
-                            disabled
-                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-not-allowed"
-                          />
-                          <label className="text-sm text-gray-500 dark:text-gray-400 font-mono break-all">
-                            {scopes.join(", ")}
-                            <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">({p.type})</span>
-                            <span className="ml-2 text-xs text-red-500">— Managed by Microsoft</span>
-                          </label>
-                        </li>
-                      );
-                    }
-
                     return (
                       <li key={p.id} className="flex items-center gap-2">
                         <input

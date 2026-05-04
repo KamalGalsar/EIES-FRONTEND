@@ -38,19 +38,19 @@ export default function UserLayout() {
         const [usersRes, groupsRes, avgBlastRes, currentUserRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/Entra/users`, {
             credentials: "include",
-            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+            headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` }
           }),
           fetch(`${API_BASE_URL}/api/Entra/groups`, {
             credentials: "include",
-            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+            headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` }
           }),
           fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`, {
             credentials: "include",
-            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+            headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` }
           }),
           fetch(`${API_BASE_URL}/api/Entra/me`, {  // Assumes backend provides current user info
             credentials: "include",
-            headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+            headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` }
           }).catch(() => null) // optional: fallback if endpoint missing
         ]);
 

@@ -159,8 +159,12 @@ const getNodeDimensions = (type: string): { width: number; height: number } => {
 // ---------------------------------------------------------------------------
 
 function detectAndNormaliseEdges(rawEdges: GraphEdge[], rootId: string): GraphEdge[] {
-  // We no longer swap edges. We trust the backend's direction: Member -> Parent
-  return rawEdges;
+  // Swap edges: backend sends Member -> Parent, we need Parent -> Member
+  return rawEdges.map(e => ({
+    ...e,
+    from: e.to,
+    to: e.from,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -172,21 +176,23 @@ function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   parentOf: Map<string, string[]>;
   childrenOf: Map<string, string[]>;
 } {
-  const parentOf = new Map<string, string[]>();
-  const childrenOf = new Map<string, string[]>();
+  const parentOf = new Map<string, string[]>();   // child -> parents
+  const childrenOf = new Map<string, string[]>(); // parent -> children
   const edges: NormalisedEdge[] = [];
 
   for (const e of normalisedRaw) {
-    const source = e.from;
-    const target = e.to;
-    // Semantically: Child (Member) -> Parent (Group/Tenant)
-    if (!parentOf.has(source)) parentOf.set(source, []);
-    parentOf.get(source)!.push(target);
-    
-    if (!childrenOf.has(target)) childrenOf.set(target, []);
-    childrenOf.get(target)!.push(source);
-    
-    edges.push({ source: source, target: target, rawType: e.type, label: e.label });
+    const source = e.from; // now a parent (group/tenant)
+    const target = e.to;   // now a child (member)
+
+    // parentOf: for a child, list its parents
+    if (!parentOf.has(target)) parentOf.set(target, []);
+    parentOf.get(target)!.push(source);
+
+    // childrenOf: for a parent, list its children
+    if (!childrenOf.has(source)) childrenOf.set(source, []);
+    childrenOf.get(source)!.push(target);
+
+    edges.push({ source, target, rawType: e.type, label: e.label });
   }
   return { edges, parentOf, childrenOf };
 }

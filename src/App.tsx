@@ -1,5 +1,6 @@
 // Frontend/src/App.tsx
 
+// Frontend/src/App.tsx
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -15,9 +16,7 @@ import Pricing from "./pages/Pricing";
 import Resources from "./pages/Resources";
 import Company from "./pages/Company";
 import Contact from "./pages/Contact";
-import AdminGovernance from "./pages/AdminGovernance"; // redirect component
 import BackendTest from "./pages/BackendTest";
-import SimpleGraphDebug from "./components/graph/SimpleGraphDebug";
 import SimpleAllNodesGraph from "./components/graph/SimpleAllNodesGraph";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
@@ -27,32 +26,24 @@ import UserProfile from "./pages/UserProfile";
 import { AdminRoute } from "./routes/AdminRoute";
 import { AuthModalProvider } from "./context/AuthModalContext";
 
-// New admin pages (granular)
+// Admin pages
 import AdminLayout from "./components/admin/AdminLayout";
 import Overview from "./pages/admin/Overview";
 import AdminManagement from "./pages/admin/AdminManagement";
 import RoleHierarchy from "./pages/admin/RoleHierarchy";
-import GovernanceControls from "./pages/admin/GovernanceControls";
+import Alerts from "./pages/admin/Alerts";            // admin version
+import AuditLogs from "./pages/admin/AuditLogs";      // was History
 import AIControls from "./pages/admin/AiControls";
-import AuditLogs from "./pages/admin/AuditLogs";
 import Compliance from "./pages/admin/Compliance";
 import SystemSettings from "./pages/admin/SystemSettings";
 
-// New user pages (granular)
+// User pages (excluding Alerts and History)
 import UserLayout from "./components/users/UserLayout";
 import UserOverview from "./pages/users/Overview";
 import Directory from "./pages/users/Directory";
 import AttackPaths from "./pages/users/AttackPaths";
 import Permissions from "./pages/users/Permissions";
-import Alerts from "./pages/users/Alerts";
-import History from "./pages/users/History";
 import SettingsPage from "./pages/users/Settings";
-
-// Old Users page (redirect)
-import UsersRedirect from "./pages/Users";
-
-// Import the new dynamic graph component
-import DynamicGraph from "./components/graph/DynamicGraph";
 
 // Protected Route
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -105,7 +96,7 @@ export default function App() {
                     />
                   </Route>
 
-                  {/* ADMIN PANEL - Granular routes */}
+                  {/* ADMIN PANEL */}
                   <Route
                     path="/admin"
                     element={
@@ -117,22 +108,12 @@ export default function App() {
                     <Route index element={<Navigate to="/admin/admin-management" replace />} />
                     <Route path="admin-management" element={<AdminManagement />} />
                     <Route path="role-hierarchy" element={<RoleHierarchy />} />
-                    <Route path="governance" element={<GovernanceControls />} />
-                    <Route path="ai-controls" element={<AIControls />} />
+                    <Route path="alerts" element={<Alerts />} />
                     <Route path="audit-logs" element={<AuditLogs />} />
+                    <Route path="ai-controls" element={<AIControls />} />
                     <Route path="compliance" element={<Compliance />} />
                     <Route path="settings" element={<SystemSettings />} />
                   </Route>
-
-                  {/* Old admin route – redirect to new /admin */}
-                  <Route
-                    path="/admin/old"
-                    element={
-                      <AdminRoute>
-                        <AdminGovernance />
-                      </AdminRoute>
-                    }
-                  />
 
                   <Route
                     path="/admin/profile"
@@ -150,11 +131,11 @@ export default function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
-                  {/* Dynamic Graph Route - uses new component */}
+
+                  {/* Dynamic Graph Route */}
                   <Route path="/DynamicGraph" element={<SimpleAllNodesGraph />} />
 
-                  {/* GRANULAR USER PAGES (protected) */}
+                  {/* GRANULAR USER PAGES (protected) – NO alerts or history */}
                   <Route
                     element={
                       <ProtectedRoute>
@@ -166,12 +147,10 @@ export default function App() {
                     <Route path="/users/directory" element={<Directory />} />
                     <Route path="/users/attack-paths" element={<AttackPaths />} />
                     <Route path="/users/permissions" element={<Permissions />} />
-                    <Route path="/users/alerts" element={<Alerts />} />
-                    <Route path="/users/history" element={<History />} />
                     <Route path="/users/settings" element={<SettingsPage />} />
                   </Route>
 
-                  {/* OLD /users/:userId ROUTE – redirect to /users */}
+                  {/* Old /users/:userId redirect */}
                   <Route
                     path="/users/:userId"
                     element={

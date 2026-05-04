@@ -1,12 +1,11 @@
-// src/pages/users/Permissions.tsx
 import { useEffect, useState } from "react";
 import ResolveModal, { type SpAnalysisItem } from "../../components/ResolveModal";
 import { useToast } from "../../context/ToastContext";
 
-/* ---------- Local type (extends the modal's SpAnalysisItem) ---------- */
+/* ---------- Local type ---------- */
 interface SpAnalysisItemLocal extends SpAnalysisItem {}
 
-/* ---------- Cache helpers (1 hour, sessionStorage) ---------- */
+/* ---------- Cache helpers (sessionStorage, 1 hour) ---------- */
 const CACHE_KEY = "sp_analysis_cache_v4";
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
@@ -27,13 +26,20 @@ const loadFromCache = (): SpAnalysisItemLocal[] | null => {
 
 const saveToCache = (data: SpAnalysisItemLocal[]) => {
   try {
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ data, timestamp: Date.now() })
+    );
   } catch (e) {
     console.warn("Failed to cache SP analysis", e);
   }
 };
 
-/* ---------- Helper: group raw data into the three categories ---------- */
+const clearCache = () => {
+  sessionStorage.removeItem(CACHE_KEY);
+};
+
+/* ---------- Helper: group raw data ---------- */
 function groupFindings(items: SpAnalysisItemLocal[]) {
   const noOwnerToxicHigh: SpAnalysisItemLocal[] = [];
   const withOwnerToxic: SpAnalysisItemLocal[] = [];
@@ -112,6 +118,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
     </svg>
   ),
+  refresh: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+    </svg>
+  ),
 };
 
 const riskIcons: Record<number, React.ReactNode> = {
@@ -158,14 +169,13 @@ function CollapsibleSection({
   );
 }
 
-/* ---------- Permissions display (NOW WITH SPLIT LOGIC) ---------- */
+/* ---------- Permissions display ---------- */
 function PermissionsList({ permissions }: { permissions: string[] }) {
   const [showAll, setShowAll] = useState(false);
   const MAX_VISIBLE = 5;
 
   if (!permissions || permissions.length === 0) return null;
 
-  // Split each raw string by common separators and flatten
   const flattened: string[] = permissions.flatMap((p) =>
     p
       .split(/[\n,;]+/)
@@ -236,154 +246,7 @@ function EmptyMessage({ text }: { text: string }) {
   );
 }
 
-/* ---------- Main Component ---------- */
-export default function Permissions() {
-  const [grouped, setGrouped] = useState<ReturnType<typeof groupFindings> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [resolveSp, setResolveSp] = useState<SpAnalysisItem | null>(null);
-
-  const { showToast } = useToast();
-
-  const fetchAndSet = async () => {
-    const cached = loadFromCache();
-    if (cached) {
-      setGrouped(groupFindings(cached));
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5268"}/api/SpAnalysis`, {
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data: SpAnalysisItemLocal[] = await res.json();
-      setGrouped(groupFindings(data));
-      saveToCache(data);
-      setError(null);
-    } catch (err) {
-      console.error("Failed to fetch SP analysis:", err);
-      setError("Unable to load Permissions data. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAndSet();
-  }, []);
-
-  const handleCloseModal = () => setResolveSp(null);
-  const handleUpdated = () => {
-    sessionStorage.removeItem(CACHE_KEY);
-    showToast("Item resolved – permissions updated.", "success");
-    fetchAndSet();
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading Permissions Governance…</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
-        {error}
-      </div>
-    );
-  }
-
-  if (!grouped) return null;
-
-  const { noOwnerToxicHigh, withOwnerToxic, noOwnerLowMedium } = grouped;
-  const total = noOwnerToxicHigh.length + withOwnerToxic.length + noOwnerLowMedium.length;
-
-  if (total === 0) {
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-10 text-center text-gray-500 dark:text-gray-400">
-        <svg className="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-        </svg>
-        <h3 className="mt-2 text-sm font-semibold">All Clear</h3>
-        <p className="mt-1">No high‑risk permission issues detected.</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="w-full space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Permissions Governance</h2>
-
-        <CollapsibleSection
-          title="UnOwned & Toxic – High/Critical Risk"
-          icon={Icons.ownerMissing}
-          count={noOwnerToxicHigh.length}
-          defaultOpen={true}
-        >
-          {noOwnerToxicHigh.length === 0 ? (
-            <EmptyMessage text="No unowned, toxic high‑risk principals found." />
-          ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-              {noOwnerToxicHigh.map((sp) => (
-                <SpItem key={sp.spId} item={sp} showPerms={true} showReasons={true} onResolve={setResolveSp} />
-              ))}
-            </div>
-          )}
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          title="Owned but Toxic Permissions"
-          icon={Icons.toxic}
-          count={withOwnerToxic.length}
-          defaultOpen={false}
-        >
-          {withOwnerToxic.length === 0 ? (
-            <EmptyMessage text="No owned principals with toxic permissions." />
-          ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-              {withOwnerToxic.map((sp) => (
-                <SpItem key={sp.spId} item={sp} showPerms={true} showReasons={true} onResolve={setResolveSp} />
-              ))}
-            </div>
-          )}
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          title="UnOwned – Low / Medium Risk"
-          icon={Icons.ownerMissing}
-          count={noOwnerLowMedium.length}
-          defaultOpen={false}
-        >
-          {noOwnerLowMedium.length === 0 ? (
-            <EmptyMessage text="No unowned low/medium risk principals." />
-          ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-              {noOwnerLowMedium.map((sp) => (
-                <SpItem key={sp.spId} item={sp} showPerms={false} showReasons={true} onResolve={setResolveSp} />
-              ))}
-            </div>
-          )}
-        </CollapsibleSection>
-      </div>
-
-      {resolveSp && (
-        <ResolveModal sp={resolveSp} onClose={handleCloseModal} onUpdated={handleUpdated} />
-      )}
-    </>
-  );
-}
-
-/* ---------- Single SP item display (with owner name & edit icon) ---------- */
+/* ---------- Single SP item display ---------- */
 function SpItem({
   item,
   showPerms,
@@ -467,5 +330,216 @@ function SpItem({
         <ReasonsList reasons={item.reasons} />
       )}
     </div>
+  );
+}
+
+/* ---------- Main Component ---------- */
+export default function Permissions() {
+  const [grouped, setGrouped] = useState<ReturnType<typeof groupFindings> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolveSp, setResolveSp] = useState<SpAnalysisItem | null>(null);
+
+  const { showToast } = useToast();
+
+  const fetchAndSet = async (skipCache = false, isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    if (!skipCache && !isRefresh) {
+      const cached = loadFromCache();
+      if (cached) {
+        setGrouped(groupFindings(cached));
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+      // Force backend to skip its cache and return fresh data
+      const url = isRefresh
+        ? `${baseUrl}/api/SpAnalysis?refresh=true`
+        : `${baseUrl}/api/SpAnalysis`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        cache: "no-store", // Prevent browser from serving cached response
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const data: SpAnalysisItemLocal[] = await res.json();
+      const newGrouped = groupFindings(data);
+      setGrouped(newGrouped);
+      saveToCache(data);
+      setError(null);
+
+      if (isRefresh) {
+        showToast("Data refreshed successfully!", "success");
+      }
+    } catch (err) {
+      console.error("Failed to fetch SP analysis:", err);
+      setError("Unable to load Permissions data. Please try again later.");
+      if (isRefresh) {
+        showToast("Refresh failed. Please try again.", "error");
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    clearCache();            // Destroy sessionStorage cache
+    fetchAndSet(true, true); // Force fresh fetch & show overlay
+  };
+
+  useEffect(() => {
+    fetchAndSet();
+  }, []);
+
+  const handleCloseModal = () => setResolveSp(null);
+  const handleUpdated = () => {
+    clearCache();
+    showToast("Item resolved – refreshing permissions.", "success");
+    fetchAndSet(true, true);
+  };
+
+  // Initial loading (no overlay)
+  if (loading && !refreshing) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading Permissions Governance…</span>
+      </div>
+    );
+  }
+
+  // Error when not refreshing
+  if (error && !refreshing) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
+        {error}
+      </div>
+    );
+  }
+
+  if (!grouped) return null;
+
+  const { noOwnerToxicHigh, withOwnerToxic, noOwnerLowMedium } = grouped;
+  const total = noOwnerToxicHigh.length + withOwnerToxic.length + noOwnerLowMedium.length;
+
+  return (
+    <>
+      {/* Refresh overlay – now covers the whole page with a grey translucent background */}
+      {refreshing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3 shadow-xl">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="text-gray-700 dark:text-gray-300 font-medium">Refreshing data…</p>
+          </div>
+        </div>
+      )}
+
+      {total === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-10 text-center text-gray-500 dark:text-gray-400">
+          <svg className="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          <h3 className="mt-2 text-sm font-semibold">All Clear</h3>
+          <p className="mt-1">No high‑risk permission issues detected.</p>
+          <div className="mt-4">
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md flex items-center gap-2 mx-auto"
+            >
+              {Icons.refresh} Refresh Data
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Permissions Governance</h2>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {refreshing ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700 dark:border-gray-200"></div>
+              ) : (
+                Icons.refresh
+              )}
+              {refreshing ? "Refreshing..." : "Refresh Data"}
+            </button>
+          </div>
+
+          <CollapsibleSection
+            title="UnOwned & Toxic – High/Critical Risk"
+            icon={Icons.ownerMissing}
+            count={noOwnerToxicHigh.length}
+            defaultOpen={true}
+          >
+            {noOwnerToxicHigh.length === 0 ? (
+              <EmptyMessage text="No unowned, toxic high‑risk principals found." />
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                {noOwnerToxicHigh.map((sp) => (
+                  <SpItem key={sp.spId} item={sp} showPerms={true} showReasons={true} onResolve={setResolveSp} />
+                ))}
+              </div>
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Owned but Toxic Permissions"
+            icon={Icons.toxic}
+            count={withOwnerToxic.length}
+            defaultOpen={false}
+          >
+            {withOwnerToxic.length === 0 ? (
+              <EmptyMessage text="No owned principals with toxic permissions." />
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                {withOwnerToxic.map((sp) => (
+                  <SpItem key={sp.spId} item={sp} showPerms={true} showReasons={true} onResolve={setResolveSp} />
+                ))}
+              </div>
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="UnOwned – Low / Medium Risk"
+            icon={Icons.ownerMissing}
+            count={noOwnerLowMedium.length}
+            defaultOpen={false}
+          >
+            {noOwnerLowMedium.length === 0 ? (
+              <EmptyMessage text="No unowned low/medium risk principals." />
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                {noOwnerLowMedium.map((sp) => (
+                  <SpItem key={sp.spId} item={sp} showPerms={false} showReasons={true} onResolve={setResolveSp} />
+                ))}
+              </div>
+            )}
+          </CollapsibleSection>
+        </div>
+      )}
+
+      {resolveSp && (
+        <ResolveModal sp={resolveSp} onClose={handleCloseModal} onUpdated={handleUpdated} />
+      )}
+    </>
   );
 }

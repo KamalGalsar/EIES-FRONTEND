@@ -5,8 +5,6 @@ import {
   Activity,
   GitBranch,
   Key,
-  AlertTriangle,
-  FileText,
   Settings,
   Users,
   Shield,
@@ -26,29 +24,28 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Dynamic user data from AuthContext
-  const displayName = user?.name || user?.email?.split('@')[0] || 'Guest';
-  const userRole = user?.role || 'Member';
+  const displayName = user?.name || user?.email?.split("@")[0] || "Guest";
+  const userRole = user?.role || "Member";
 
-  // Dynamic risk score from backend
   const [riskScore, setRiskScore] = useState<number | null>(null);
   const [loadingRisk, setLoadingRisk] = useState(true);
 
-  // Fetch tenant risk score (average blast radius) on mount
+  const token = localStorage.getItem("accessToken") || "";
+
   useEffect(() => {
     const fetchRiskScore = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`, {
           credentials: "include",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
         if (!response.ok) throw new Error(`Failed to fetch risk score: ${response.status}`);
         const data = await response.json();
-        const avgBlastFraction = data.averageBlastRadius; // fraction between 0 and 1
-        const computedScore = avgBlastFraction * 10;       // scale to 0-10
+        const avgBlastFraction = data.averageBlastRadius;
+        const computedScore = avgBlastFraction * 10;
         setRiskScore(computedScore);
       } catch (err) {
         console.error("Error fetching risk score for sidebar:", err);
@@ -58,61 +55,52 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       }
     };
     fetchRiskScore();
-  }, []);
+  }, [token]);
 
-  // Get initials: first letter of first name + first letter of last name
   const getInitials = (name: string) => {
-    if (!name || name === 'Guest') return 'G';
+    if (!name || name === "Guest") return "G";
     const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0].charAt(0).toUpperCase();
-    }
-    const first = parts[0].charAt(0);
-    const last = parts[parts.length - 1].charAt(0);
-    return (first + last).toUpperCase();
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
   const userInitials = getInitials(displayName);
 
+  // Alerts and History removed
   const menuItems = [
     { path: "/users", label: "Risk Overview", icon: Activity },
     { path: "/users/directory", label: "Entra Directory", icon: Users },
     { path: "/users/attack-paths", label: "Attack Paths", icon: GitBranch },
     { path: "/users/permissions", label: "Permissions", icon: Key },
-    { path: "/users/alerts", label: "Active Alerts", icon: AlertTriangle, badge: "3" },
-    { path: "/users/history", label: "Risk History", icon: FileText },
     { path: "/users/settings", label: "Settings", icon: Settings },
   ];
 
   const isActive = (path: string) => {
-    if (path === "/users") {
-      return location.pathname === "/users";
-    }
+    if (path === "/users") return location.pathname === "/users";
     return location.pathname.startsWith(path);
   };
 
-  // Format risk score for display
   const riskScoreDisplay = loadingRisk
     ? "Loading..."
     : riskScore !== null
     ? `${riskScore.toFixed(1)}/10`
     : "Unavailable";
 
-  const riskScoreColor = riskScore !== null
-    ? riskScore >= 7
-      ? "text-red-600 dark:text-red-400"
-      : riskScore >= 4
-      ? "text-yellow-600 dark:text-yellow-400"
-      : "text-green-600 dark:text-green-400"
-    : "text-gray-500";
+  const riskScoreColor =
+    riskScore !== null
+      ? riskScore >= 7
+        ? "text-red-600 dark:text-red-400"
+        : riskScore >= 4
+        ? "text-yellow-600 dark:text-yellow-400"
+        : "text-green-600 dark:text-green-400"
+      : "text-gray-500";
 
   return (
-    <div className={`
-      fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 transform transition-transform duration-300 ease-in-out md:translate-x-0
-      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-xl md:shadow-none
-    `}>
-      {/* Close button for mobile */}
+    <div
+      className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      } border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-xl md:shadow-none`}
+    >
       <button
         onClick={onClose}
         className="absolute top-4 right-4 p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
@@ -166,11 +154,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <Icon className="w-5 h-5" />
                 <span className="text-sm">{item.label}</span>
               </div>
-              {item.badge && !active && (
-                <span className="px-1.5 py-0.5 text-xs bg-red-600 dark:bg-red-700 text-white rounded-full">
-                  {item.badge}
-                </span>
-              )}
             </button>
           );
         })}
