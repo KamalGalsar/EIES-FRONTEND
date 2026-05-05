@@ -363,8 +363,8 @@ export default function Permissions() {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
       // Force backend to skip its cache and return fresh data
       const url = isRefresh
-        ? `${baseUrl}/sp/api/SpAnalysis?refresh=true`
-        : `${baseUrl}/sp/api/SpAnalysis`;
+        ? `${baseUrl}/api/SpAnalysis?refresh=true`
+        : `${baseUrl}/api/SpAnalysis`;
 
       const res = await fetch(url, {
         method: "GET",
