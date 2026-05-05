@@ -1,6 +1,6 @@
 // components/users/TopNav.tsx
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, User, LogOut, Settings, ChevronLeft, Menu } from "lucide-react";
+import { Search, Bell, User, LogOut, ChevronLeft, Menu, ShieldAlert, Zap, BarChart3, CheckCircle2, Clock, Trash2, TrendingUp, BellRing, Copy, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
@@ -15,44 +15,212 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>(() => {
+    const saved = sessionStorage.getItem("session_notifications");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Persist to sessionStorage whenever notifications change
+  useEffect(() => {
+    sessionStorage.setItem("session_notifications", JSON.stringify(notifications));
+    setUnreadCount(notifications.filter(n => !n.read).length);
+  }, [notifications]);
+
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
 
-  // Close dropdown when clicking outside
+  const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${BACKEND}/api/Alerts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Map backend Alert model to UI Notification structure
+        const mapped = data.map((a: any) => {
+          let title = a.title;
+          let message = a.description;
+          let severity = a.severity || 'info';
+
+          // Priority 1: Detect status from message text (Red/Green)
+          const lowerMsg = message.toLowerCase();
+          const isFailed = lowerMsg.includes("failed") || lowerMsg.includes("success: false") || lowerMsg.includes("error");
+          const isSuccess = lowerMsg.includes("succeeded") || lowerMsg.includes("success: true") || lowerMsg.includes("new password:");
+
+          if (isFailed) {
+            severity = 'critical';
+          } else if (isSuccess) {
+            severity = 'success';
+          } else if (a.type === 'remediation') {
+            severity = 'success'; // Default remediation to success if no failure detected
+          } else {
+            // Fallback to backend severity or info
+            if (severity === 'high' || severity === 'critical') severity = 'critical';
+            else if (severity === 'success') severity = 'success';
+            else severity = 'info';
+          }
+
+          // --- LEGACY CLEANUP LOGIC ---
+          // If it follows the old "User performed remediation: Action..." pattern
+          if (title === "Remediation executed" || title === "Remediation triggered (mock mode)") {
+            const parts = message.split('performed remediation: ');
+            if (parts.length > 1) {
+              const actionParts = parts[1].split(' – ');
+              title = actionParts[0]; // Set Action as title
+              message = actionParts[1] || parts[1]; // Set rest as message
+            }
+          }
+          // Remove the "User performed remediation: " prefix if it still exists
+          message = message.replace(/.*performed remediation: /i, '');
+          // ----------------------------
+
+          return {
+            id: a.id,
+            severity: severity,
+            title: title,
+            message: message,
+            time: formatTime(a.createdAt),
+            read: a.isRead,
+            alertType: a.type
+          };
+        });
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const fresh = mapped.filter((n: any) => !existingIds.has(n.id));
+          if (fresh.length === 0) return prev;
+          return [...fresh, ...prev];
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    // Ensure the date string is treated as UTC if it doesn't have a timezone indicator
+    let normalizedDateStr = dateStr;
+    if (dateStr && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      normalizedDateStr = dateStr + 'Z';
+    }
+    
+    const date = new Date(normalizedDateStr);
+    const now = new Date();
+    
+    // Calculate difference in seconds
+    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    // If diff is negative (clock drift), treat as 'Just now'
+    if (diffSeconds < 30) return 'Just now';
+    
+    const diffMins = Math.floor(diffSeconds / 60);
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  const getIcon = (severity: string, type: string) => {
+    if (severity === 'critical' || severity === 'high') return <ShieldAlert className="w-4 h-4 text-red-500" />;
+    if (type === 'remediation' || severity === 'success') return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
+    return <Zap className="w-4 h-4 text-amber-500" />;
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    // Poll for notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const markAsRead = async (id: number) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      await fetch(`${BACKEND}/api/Alerts/${id}/read`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await fetch(`${BACKEND}/api/alerts/mark-all-read`, { method: "POST" });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
+  };
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (text: string, id: string) => {
+    // Try to extract password if it exists
+    let toCopy = text;
+    if (text.includes("New Password: ")) {
+      const match = text.match(/New Password: ([^\s]+)/);
+      if (match) toCopy = match[1];
+    }
+    
+    navigator.clipboard.writeText(toCopy);
+    setCopiedId(id);
+    showToast("Copied to clipboard!", "success");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      
+      // Handle Profile Menu
+      if (menuRef.current && !menuRef.current.contains(target) && buttonRef.current && !buttonRef.current.contains(target)) {
         setShowProfileMenu(false);
       }
+      
+      // Handle Notifications
+      if (notificationRef.current && !notificationRef.current.contains(target) && bellRef.current && !bellRef.current.contains(target)) {
+        setShowNotifications(false);
+      }
     }
-    if (showProfileMenu) {
+    
+    if (showProfileMenu || showNotifications) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showProfileMenu]);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showProfileMenu, showNotifications]);
 
-  // Close dropdown on Escape key
+  // Close on Escape
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && showProfileMenu) {
+      if (event.key === 'Escape') {
         setShowProfileMenu(false);
+        setShowNotifications(false);
       }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [showProfileMenu]);
+  }, []);
 
-  const handleLogout = async () => {
-    await logout();
-    showToast('Signed out successfully', 'success');
-    navigate('/');
+  const handleLogout = () => {
+    sessionStorage.removeItem("session_notifications");
+    logout();
+    navigate("/signin");
   };
 
   // Dynamic user data
@@ -74,7 +242,7 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   const userInitials = getInitials(displayName);
 
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 z-40 transition-all duration-300">
+    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 z-[60] transition-all duration-300">
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
         {/* Left section */}
         <div className="flex items-center gap-3 flex-1">
@@ -119,10 +287,137 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
 
         {/* Right section */}
         <div className="flex items-center gap-2 sm:gap-4">
-          <button className="relative p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+          <div className="relative">
+            <button 
+              ref={bellRef}
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`relative p-2 rounded-lg transition-colors ${
+                showNotifications 
+                  ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-500/50' 
+                  : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+              }`}
+            >
+              <BellRing className={`w-5 h-5 ${unreadCount > 0 ? 'animate-bounce' : ''}`} />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></span>
+              )}
+            </button>
+            {showNotifications && (
+              <div 
+                ref={notificationRef}
+                className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[100] overflow-hidden"
+              >
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-blue-500" /> Notifications
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button 
+                        onClick={markAllAsRead}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setNotifications([])}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-400"
+                      title="Clear all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[400px] overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <CheckCircle2 className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">All caught up!</p>
+                      <p className="text-xs text-gray-400 mt-1">No new security alerts</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {notifications.map(n => (
+                        <div 
+                          key={n.id} 
+                          className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative ${!n.read ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                          onClick={() => markAsRead(n.id)}
+                        >
+                          {!n.read && (
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                          )}
+                          <div className="flex gap-3">
+                            <div className={`p-2 rounded-lg shrink-0 h-fit ${
+                              n.severity === 'critical' ? 'bg-red-100 dark:bg-red-900/30' :
+                              n.severity === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30' :
+                              'bg-amber-100 dark:bg-amber-900/30'
+                            }`}>
+                              {getIcon(n.severity, n.alertType)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-xs font-bold ${
+                                  n.severity === 'critical' ? 'text-red-600 dark:text-red-400' :
+                                  n.severity === 'success' ? 'text-emerald-600 dark:text-emerald-400' :
+                                  'text-amber-600 dark:text-amber-400'
+                                }`}>
+                                  {n.title}
+                                </span>
+                                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" /> {n.time}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed break-words relative group/msg">
+                                {n.message.split(/(\bSuccess: True\b|\bStatus: Succeeded\b|\bStatus: Success\b|\bStatus: Failed\b|\bSuccess: False\b)/i).map((part: string, i: number) => {
+                                  const lower = part.toLowerCase();
+                                  const isStatus = (lower.includes('success') || lower.includes('succeeded') || lower.includes('failed') || lower.includes('false')) && lower.includes('status') || lower.includes('success:');
+                                  
+                                  if (isStatus) {
+                                    const isSuccess = (lower.includes('success') || lower.includes('succeeded')) && !lower.includes('failed') && !lower.includes('false');
+                                    return (
+                                      <span key={i} className="block mb-1">
+                                        <span className={isSuccess ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
+                                          {part}
+                                        </span>
+                                      </span>
+                                    );
+                                  }
+                                  return <span key={i} className="block mt-0.5 opacity-90">{part.replace(/^\. /, '')}</span>;
+                                })}
+
+                                {n.message.includes("New Password:") && n.severity === 'success' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopy(n.message, n.id);
+                                    }}
+                                    className="absolute right-0 top-0 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all opacity-0 group-hover/msg:opacity-100"
+                                    title="Copy temporary password"
+                                  >
+                                    {copiedId === n.id ? (
+                                      <Check className="w-3 h-3 text-emerald-500" />
+                                    ) : (
+                                      <Copy className="w-3 h-3 text-gray-500" />
+                                    )}
+                                  </button>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+
+              </div>
+            )}
+          </div>
 
           <div className="relative">
             <button
@@ -153,16 +448,6 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
                 >
                   <User className="w-4 h-4" />
                   Profile
-                </button>
-                <button
-                  onClick={() => {
-                    navigate("/settings");
-                    setShowProfileMenu(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <Settings className="w-4 h-4" />
-                  Settings
                 </button>
                 <hr className="my-1 border-gray-200 dark:border-gray-700" />
                 <button

@@ -419,7 +419,7 @@ export default function Permissions() {
     return (
       <div className="flex justify-center items-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading Permissions Governance…</span>
+        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading Privilege Governance…</span>
       </div>
     );
   }
@@ -469,7 +469,7 @@ export default function Permissions() {
       ) : (
         <div className="w-full space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Permissions Governance</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Privilege Governance</h2>
             <button
               onClick={handleRefresh}
               disabled={refreshing}

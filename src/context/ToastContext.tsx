@@ -34,13 +34,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 1000);
+    }, 3000);
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-6 right-6 z-50 flex flex-col gap-2">
+      <div className="fixed top-6 right-6 z-[200] flex flex-col gap-2">
         {toasts.map((toast) => (
           <div
             key={toast.id}

@@ -3,13 +3,20 @@ import { useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
+  ControlButton,
   MarkerType,
   Position,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   type ReactFlowInstance,
   type Node,
   type Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Download, Search, X } from "lucide-react";
+import { exportGraphAsPng } from "../../utils/graphExport";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
@@ -49,16 +56,16 @@ interface HierarchyResult {
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const NODE_WIDTH    = 160;
-const NODE_HEIGHT   = 50;
-const TENANT_WIDTH  = 200;
-const LEVEL_HEIGHT  = 200;
-const TOP_PADDING   = 80;
+const NODE_WIDTH = 160;
+const NODE_HEIGHT = 50;
+const TENANT_WIDTH = 200;
+const LEVEL_HEIGHT = 200;
+const TOP_PADDING = 80;
 
 function getGapForCount(count: number): number {
-  if (count <= 2)  return 100;
-  if (count <= 4)  return 140;
-  if (count <= 8)  return 180;
+  if (count <= 2) return 100;
+  if (count <= 4) return 140;
+  if (count <= 8) return 180;
   if (count <= 14) return 220;
   return 260;
 }
@@ -120,7 +127,7 @@ const getNodeDimensions = (type: string): { width: number; height: number } => {
 
 function detectAndNormaliseEdges(rawEdges: GraphEdge[], rootId: string): GraphEdge[] {
   const tenantAsParent = rawEdges.filter((e) => e.to === rootId).length;
-  const tenantAsChild  = rawEdges.filter((e) => e.from === rootId).length;
+  const tenantAsChild = rawEdges.filter((e) => e.from === rootId).length;
   if (tenantAsParent === 0 && tenantAsChild > 0) {
     console.warn("Edge direction inverted — swapping all edges.");
     return rawEdges.map((e) => ({ from: e.to, to: e.from, type: e.type }));
@@ -137,13 +144,13 @@ function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   parentOf: Map<string, string[]>;
   childrenOf: Map<string, string[]>;
 } {
-  const parentOf   = new Map<string, string[]>();
+  const parentOf = new Map<string, string[]>();
   const childrenOf = new Map<string, string[]>();
   const edges: NormalisedEdge[] = [];
 
   for (const e of normalisedRaw) {
     const parent = e.to;
-    const child  = e.from;
+    const child = e.from;
     if (!parentOf.has(child)) parentOf.set(child, []);
     parentOf.get(child)!.push(parent);
     if (!childrenOf.has(parent)) childrenOf.set(parent, []);
@@ -499,13 +506,63 @@ function deriveViewport(
 // ---------------------------------------------------------------------------
 
 export default function SimpleAllNodesGraph() {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  return (
+    <ReactFlowProvider>
+      <SimpleAllNodesGraphContent />
+    </ReactFlowProvider>
+  );
+}
+
+function SimpleAllNodesGraphContent() {
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 0.8 });
+  const [isLocked, setIsLocked] = useState(true); // true = nodes locked (cannot be dragged)
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
+  const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
+
+  const { setCenter, fitView } = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
   const rfInstance = useRef<ReactFlowInstance | null>(null);
+
+  // Pathfinding logic
+  const findPathToRoot = (startNodeId: string) => {
+    const pathNodes = new Set<string>([startNodeId]);
+    const pathEdges = new Set<string>();
+    const queue = [startNodeId];
+    const visited = new Set<string>([startNodeId]);
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      edges.forEach(edge => {
+        if (edge.target === currentId && !visited.has(edge.source)) {
+          visited.add(edge.source);
+          pathNodes.add(edge.source);
+          pathEdges.add(edge.id);
+          queue.push(edge.source);
+        }
+      });
+    }
+
+    setHighlightedNodes(pathNodes);
+    setHighlightedEdges(pathEdges);
+
+    const searchedNode = nodes.find(n => n.id === startNodeId);
+    if (searchedNode) {
+      setCenter(searchedNode.position.x + 80, searchedNode.position.y + 25, { zoom: 1.2, duration: 800 });
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    setHighlightedNodes(new Set());
+    setHighlightedEdges(new Set());
+    fitView({ duration: 800 });
+  };
 
   useEffect(() => {
     const fetchGraph = async () => {
@@ -564,11 +621,7 @@ export default function SimpleAllNodesGraph() {
     fetchGraph();
   }, []);
 
-  useEffect(() => {
-    if (nodes.length > 0 && rfInstance.current) {
-      setTimeout(() => rfInstance.current?.fitView({ padding: 0.1, duration: 400 }), 50);
-    }
-  }, [nodes]);
+  // REMOVED: useEffect that called fitView on every node change, preventing manual placement.
 
   if (loading) {
     return (
@@ -599,11 +652,95 @@ export default function SimpleAllNodesGraph() {
   }
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+    <div ref={containerRef} className="relative w-full h-full">
+      {/* Search Bar UI */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-10 py-2.5 bg-gray-900/80 backdrop-blur-md border border-gray-700 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-2xl"
+            placeholder="Search directory to trace exposure path..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const found = nodes.find(n =>
+                  (n.data as any).label.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                if (found) findPathToRoot(found.id);
+              }
+            }}
+          />
+          {searchTerm && (
+            <button
+              onClick={clearSearch}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Suggestions Dropdown */}
+          {searchTerm && !highlightedNodes.size && (
+            <div className="absolute mt-2 w-full bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50 max-h-60 overflow-y-auto">
+              {nodes
+                .filter(n => (n.data as any).label.toLowerCase().includes(searchTerm.toLowerCase()))
+                .slice(0, 5)
+                .map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      setSearchTerm((n.data as any).label);
+                      findPathToRoot(n.id);
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-blue-600/20 hover:text-white flex items-center gap-3 transition-colors border-b border-gray-800 last:border-0"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${n.type === 'user' ? 'bg-blue-400' : 'bg-purple-400'}`} />
+                    {(n.data as any).label}
+                    <span className="text-[10px] text-gray-500 ml-auto uppercase tracking-wider">{n.type}</span>
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        defaultViewport={viewport}
+        nodes={nodes.map(n => {
+          if (highlightedNodes.size === 0) return n;
+          const isHighlighted = highlightedNodes.has(n.id);
+          return {
+            ...n,
+            style: {
+              ...n.style,
+              opacity: isHighlighted ? 1 : 0.15,
+              filter: isHighlighted ? 'none' : 'grayscale(100%)',
+              border: isHighlighted ? '2px solid #F97316' : n.style?.border,
+              boxShadow: isHighlighted ? '0 0 20px rgba(249, 115, 22, 0.4)' : n.style?.boxShadow,
+              transition: 'all 0.5s ease-in-out'
+            }
+          };
+        })}
+        edges={edges.map(e => {
+          if (highlightedEdges.size === 0) return e;
+          const isHighlighted = highlightedEdges.has(e.id);
+          return {
+            ...e,
+            animated: isHighlighted,
+            style: {
+              ...e.style,
+              stroke: isHighlighted ? '#F97316' : '#334155',
+              strokeWidth: isHighlighted ? 3 : 1,
+              opacity: isHighlighted ? 1 : 0.1,
+              transition: 'all 0.5s ease-in-out'
+            }
+          };
+        })}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         onInit={instance => {
           rfInstance.current = instance;
           setTimeout(() => instance.fitView({ padding: 0.1, duration: 400 }), 50);
@@ -612,10 +749,29 @@ export default function SimpleAllNodesGraph() {
         fitViewOptions={{ padding: 0.1 }}
         minZoom={0.1}
         maxZoom={1.5}
+        nodesDraggable={!isLocked}
+        nodesFocusable={!isLocked}
         style={{ background: "#0B1220", height: "100%", width: "100%" }}
+        proOptions={{ hideAttribution: true }}
       >
         <Background color="#1E293B" gap={16} />
-        <Controls style={{ background: "#1E293B", color: "white", border: "1px solid #334155" }} />
+        <Controls
+          style={{ background: "#1E293B", color: "white", border: "1px solid #334155" }}
+          showInteractive={false}
+        >
+          <ControlButton
+            onClick={() => setIsLocked(prev => !prev)}
+            title={isLocked ? 'Unlock nodes — drag to reposition' : 'Lock node positions'}
+          >
+            <span style={{ fontSize: '11px' }}>{isLocked ? '🔒' : '🔓'}</span>
+          </ControlButton>
+          <ControlButton
+            onClick={() => exportGraphAsPng(nodes, 'EIES-Full-Directory.png')}
+            title="Export as PNG"
+          >
+            <Download style={{ width: 12, height: 12, color: '#94a3b8' }} />
+          </ControlButton>
+        </Controls>
       </ReactFlow>
     </div>
   );

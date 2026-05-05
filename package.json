@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.15",
+    "@rollup/rollup-win32-x64-msvc": "^4.60.3",
     "@types/dagre": "^0.7.54",
     "axios": "^1.15.0",
     "dagre": "^0.8.5",
+    "downloadjs": "^1.4.7",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -21,10 +25,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/downloadjs": "^1.4.6",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.24",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

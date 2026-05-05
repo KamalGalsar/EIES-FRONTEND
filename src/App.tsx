@@ -41,7 +41,6 @@ import SystemSettings from "./pages/admin/SystemSettings";
 import UserLayout from "./components/users/UserLayout";
 import UserOverview from "./pages/users/Overview";
 import Directory from "./pages/users/Directory";
-import AttackPaths from "./pages/users/AttackPaths";
 import Permissions from "./pages/users/Permissions";
 import SettingsPage from "./pages/users/Settings";
 
@@ -145,7 +144,6 @@ export default function App() {
                   >
                     <Route path="/users" element={<UserOverview />} />
                     <Route path="/users/directory" element={<Directory />} />
-                    <Route path="/users/attack-paths" element={<AttackPaths />} />
                     <Route path="/users/permissions" element={<Permissions />} />
                     <Route path="/users/settings" element={<SettingsPage />} />
                   </Route>

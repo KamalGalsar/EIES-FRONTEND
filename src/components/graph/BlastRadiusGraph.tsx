@@ -1,41 +1,51 @@
 // Frontend/src/components/graph/BlastRadiusGraph.tsx
 
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import ReactFlow, { 
-  Background, 
-  Controls, 
-  MarkerType, 
-  Position
+import { useCallback, useEffect, useState, useRef } from 'react';
+import ReactFlow, {
+  Background,
+  Controls,
+  ControlButton,
+  MarkerType,
+  Position,
+  useNodesState,
+  useEdgesState
 } from 'reactflow';
 // Import types separately for Vite compatibility
 import type { Node, Edge, ReactFlowInstance } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { ShieldAlert, Info, RotateCcw, Lock, UserMinus, ShieldCheck, AlertTriangle, Zap, CheckCircle2, RefreshCw, X } from 'lucide-react';
+import { ShieldAlert, Info, RotateCcw, Lock, UserMinus, AlertTriangle, Zap, CheckCircle2, RefreshCw, X, Download, Settings2 } from 'lucide-react';
+import { exportGraphAsPng } from '../../utils/graphExport';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
-const NODE_WIDTH = 180;
+
 
 function getNodeStyle(type: string, riskClass: number, isStart: boolean) {
   const base = {
     padding: '10px 15px',
     borderRadius: '8px',
-    width: NODE_WIDTH,
-    fontSize: '13px',
+    minHeight: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '11px',
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center' as const,
     boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-    border: '2px solid'
+    border: '2px solid',
+    width: 'max-content',
+    minWidth: '160px',
+    whiteSpace: 'nowrap'
   };
 
   const isCritical = riskClass >= 4;
-  
+
   switch (type.toLowerCase()) {
     case 'user':
-      return { 
-        ...base, 
-        background: '#1E3A8A', 
+      return {
+        ...base,
+        background: '#1E3A8A',
         borderColor: isStart ? '#00f2ff' : '#3B82F6',
         borderRadius: '20px',
         boxShadow: isStart ? '0 0 20px rgba(0, 242, 255, 0.4)' : base.boxShadow
@@ -56,7 +66,7 @@ function getNodeStyle(type: string, riskClass: number, isStart: boolean) {
 
 function buildLayout(rawNodes: any[], rawEdges: any[]) {
   const childrenOf = new Map<string, string[]>();
-  
+
   rawEdges.forEach((e) => {
     if (!childrenOf.has(e.from)) childrenOf.set(e.from, []);
     childrenOf.get(e.from)!.push(e.to);
@@ -64,7 +74,7 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
 
   const rootId = rawNodes.find(n => n.isStartNode)?.id || (rawNodes.length > 0 ? rawNodes[0].id : null);
   const depth = new Map<string, number>();
-  
+
   if (!rootId) return { nodes: [], edges: [] };
 
   const queue = [rootId];
@@ -95,20 +105,33 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
     byLevel.get(lvl)!.push(n.id);
   });
 
-  const LEVEL_HEIGHT = 180;
+  const LEVEL_HEIGHT = 200; // Balanced height for organic curves
   const TOP_PADDING = 100;
 
   const rfNodes: Node[] = rawNodes.map((node) => {
     const lvl = depth.get(node.id) ?? 0;
     const idsAtLvl = byLevel.get(lvl) || [];
     const index = idsAtLvl.indexOf(node.id);
-    
-    const gap = 260;
-    const totalWidth = (idsAtLvl.length - 1) * gap;
-    const x = (index * gap) - (totalWidth / 2) + 400;
+
+    const charWidth = 8;
+    const padding = 40;
+    const nodeWidths = idsAtLvl.map(id => {
+      const node = rawNodes.find(n => n.id === id);
+      const label = node?.label || "";
+      return Math.max(160, label.length * charWidth + padding);
+    });
+
+    const hGap = 60;
+    const totalLevelWidth = nodeWidths.reduce((a, b) => a + b, 0) + (idsAtLvl.length - 1) * hGap;
+
+    let startX = -(totalLevelWidth / 2) + 500;
+    for (let i = 0; i < index; i++) {
+      startX += nodeWidths[i] + hGap;
+    }
+    const width = nodeWidths[index];
+    const x = startX + (width / 2);
     const y = TOP_PADDING + (lvl * LEVEL_HEIGHT);
-    
-    const width = node.type === 'subscription' ? 200 : NODE_WIDTH;
+
     return {
       id: node.id,
       data: {
@@ -122,7 +145,10 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
       position: { x: x - width / 2, y: y },
       targetPosition: Position.Top,
       sourcePosition: Position.Bottom,
-      style: getNodeStyle(node.type, node.riskClass, node.isStartNode),
+      style: {
+        ...getNodeStyle(node.type, node.riskClass, node.isStartNode),
+      },
+      title: node.label // Add title for hover tooltip
     };
   });
 
@@ -146,8 +172,8 @@ interface BlastRadiusGraphProps {
 }
 
 export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [impact, setImpact] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,6 +182,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
   const [remediatedNodes, setRemediatedNodes] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ opt: any } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isLocked, setIsLocked] = useState(true); // true = nodes are locked (cannot be dragged)
   const { showToast } = useToast();
   const flowInstance = useRef<ReactFlowInstance | null>(null);
 
@@ -222,83 +249,83 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
 
       // --- SMART PATH-BREAKING LOGIC ---
       const roleNodes = nodes.filter(n => {
-        const t = (n.data?.nodeType || '').toLowerCase();
+        const t = ((n.data as any)?.nodeType || '').toLowerCase();
         return t === 'role' || t === 'azurerole';
       });
       if (roleNodes.length > 0) {
         // Build adjacency list
         const adj: Record<string, string[]> = {};
         edges.forEach(e => {
-           if (!adj[e.source]) adj[e.source] = [];
-           adj[e.source].push(e.target);
+          if (!adj[e.source]) adj[e.source] = [];
+          adj[e.source].push(e.target);
         });
 
         // BFS to find shortest path to a role
-        const queue: {id: string, path: string[]}[] = [{id: node.id, path: [node.id]}];
+        const queue: { id: string, path: string[] }[] = [{ id: node.id, path: [node.id] }];
         const visited = new Set<string>([node.id]);
-        
+
         let shortestPath: string[] | null = null;
         let targetNode: any = null;
 
         while (queue.length > 0) {
-          const {id, path} = queue.shift()!;
+          const { id, path } = queue.shift()!;
           const nodeObj = nodes.find(n => n.id === id);
-          
+
           if (id !== node.id) {
-             const t = (nodeObj?.data?.nodeType || '').toLowerCase();
-             if (t === 'role' || t === 'azurerole') {
-                 shortestPath = path;
-                 targetNode = nodeObj;
-                 break; // Found shortest path to a role
-             }
+            const t = ((nodeObj?.data as any)?.nodeType || '').toLowerCase();
+            if (t === 'role' || t === 'azurerole') {
+              shortestPath = path;
+              targetNode = nodeObj;
+              break; // Found shortest path to a role
+            }
           }
 
           for (const nbr of (adj[id] || [])) {
             if (!visited.has(nbr)) {
               visited.add(nbr);
-              queue.push({id: nbr, path: [...path, nbr]});
+              queue.push({ id: nbr, path: [...path, nbr] });
             }
           }
         }
 
         if (shortestPath && shortestPath.length >= 3) {
-            let breakSource: any = null;
-            let breakTarget: any = null;
-            
-            // Find the first group -> group edge
-            for (let i = 0; i < shortestPath.length - 1; i++) {
-                const src = nodes.find(n => n.id === shortestPath[i]);
-                const tgt = nodes.find(n => n.id === shortestPath[i+1]);
-                if (src?.data?.nodeType === 'group' && tgt?.data?.nodeType === 'group') {
-                    breakSource = src;
-                    breakTarget = tgt;
-                    break;
-                }
-            }
-            
-            // If no group->group edge, use user->group edge
-            if (!breakSource) {
-                const src = nodes.find(n => n.id === shortestPath[0]);
-                const tgt = nodes.find(n => n.id === shortestPath[1]);
-                if (src && tgt && tgt.data?.nodeType === 'group') {
-                    breakSource = src;
-                    breakTarget = tgt;
-                }
-            }
+          let breakSource: any = null;
+          let breakTarget: any = null;
 
-            if (breakSource && breakTarget) {
-                opts.push({
-                   id: 'smart-path-break',
-                   label: `Unnest ${breakSource.data.label}`,
-                   icon: <ShieldAlert className="w-4 h-4" />,
-                   action: 'Sever specific attack path',
-                   reason: `Identity inherits high-risk role (${targetNode?.data?.label || 'Target'}) indirectly via nested group. Removing the role at the endpoint disrupts intended access for others.`,
-                   benefit: `Breaks the specific attack path by removing ${breakSource.data.label} from ${breakTarget.data.label}, neutralizing risk efficiently.`,
-                   impact: `Members of ${breakSource.data.label} lose permissions inherited from ${breakTarget.data.label}.`,
-                   sourceGroupId: breakTarget.id, // Group B (parent)
-                   memberIdToRemove: breakSource.id // Group A (child)
-                });
+          // Find the first group -> group edge
+          for (let i = 0; i < shortestPath.length - 1; i++) {
+            const src = nodes.find(n => n.id === shortestPath[i]);
+            const tgt = nodes.find(n => n.id === shortestPath[i + 1]);
+            if ((src?.data as any)?.nodeType === 'group' && (tgt?.data as any)?.nodeType === 'group') {
+              breakSource = src;
+              breakTarget = tgt;
+              break;
             }
+          }
+
+          // If no group->group edge, use user->group edge
+          if (!breakSource) {
+            const src = nodes.find(n => n.id === shortestPath[0]);
+            const tgt = nodes.find(n => n.id === shortestPath[1]);
+            if (src && tgt && (tgt.data as any)?.nodeType === 'group') {
+              breakSource = src;
+              breakTarget = tgt;
+            }
+          }
+
+          if (breakSource && breakTarget) {
+            opts.push({
+              id: 'smart-path-break',
+              label: `Unnest ${breakSource.data.label}`,
+              icon: <ShieldAlert className="w-4 h-4" />,
+              action: 'Sever specific attack path',
+              reason: `Identity inherits high-risk role (${targetNode?.data?.label || 'Target'}) indirectly via nested group. Removing the role at the endpoint disrupts intended access for others.`,
+              benefit: `Breaks the specific attack path by removing ${breakSource.data.label} from ${breakTarget.data.label}, neutralizing risk efficiently.`,
+              impact: `Members of ${breakSource.data.label} lose permissions inherited from ${breakTarget.data.label}.`,
+              sourceGroupId: breakTarget.id, // Group B (parent)
+              memberIdToRemove: breakSource.id // Group A (child)
+            });
+          }
         }
       }
       // --- END SMART LOGIC ---
@@ -337,17 +364,33 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
         }
       ];
     } else if (type === 'application' || type === 'serviceprincipal') {
-      return [
-        {
-          id: 'legacy',
-          label: 'Block Legacy Auth',
-          icon: <ShieldCheck className="w-4 h-4" />,
-          action: 'Disable legacy authentication',
-          reason: `This application (risk class ${riskClass}) may support legacy protocols that bypass MFA.`,
-          benefit: 'Enforcing modern auth blocks credential spray and brute-force attacks on this app.',
-          impact: 'Older clients using IMAP/POP3/SMTP basic auth will stop working. Test in staging first.'
-        }
-      ];
+      const options = [];
+
+      // Critical/High risk remediation
+      if (riskClass >= 3) {
+        options.push({
+          id: 'revoke-all',
+          label: 'Revoke All Permissions',
+          icon: <ShieldAlert className="w-4 h-4" />,
+          action: 'RevokeAllPermissions',
+          reason: `This application (risk class ${riskClass}) has excessive permissions and no active governance.`,
+          benefit: 'Immediately severs all API access granted to this application.',
+          impact: 'The application will stop functioning for all users until permissions are re-granted.'
+        });
+      }
+
+      // Modern Auth / Legacy protocol remediation
+      options.push({
+        id: 'legacy',
+        label: 'Block Legacy Auth',
+        icon: <Lock className="w-4 h-4" />,
+        action: 'Disable legacy authentication',
+        reason: `This application (risk class ${riskClass}) may support legacy protocols that bypass MFA.`,
+        benefit: 'Enforcing modern auth blocks credential spray and brute-force attacks on this app.',
+        impact: 'Older clients using IMAP/POP3/SMTP basic auth will stop working. Test in staging first.'
+      });
+
+      return options;
     } else if (type === 'azurerole' || type === 'role') {
       return [
         {
@@ -379,17 +422,13 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
     try {
       const response = await api.get(`/Toxic/blast-radius/${nodeId}${forceRefresh ? '?refresh=true' : ''}`);
       const { nodes: rawNodes, edges: rawEdges, impact: impactData } = response.data;
-      
+
       const { nodes: rfNodes, edges: rfEdges } = buildLayout(rawNodes, rawEdges);
       setNodes(rfNodes);
       setEdges(rfEdges);
       setImpact(impactData);
-      
-      setTimeout(() => {
-        if (flowInstance.current) {
-          flowInstance.current.fitView({ padding: 0.2, duration: 800 });
-        }
-      }, 150);
+
+      /* REMOVED: Automatic fitView on every fetch that reset manual placement. Initial fitView is still handled by ReactFlow props if needed or can be called once. */
 
       if (forceRefresh) showToast('Blast radius updated from Azure', 'success');
     } catch (error) {
@@ -482,7 +521,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <ShieldAlert className="w-3.5 h-3.5" /> Potential Impact
             </h3>
-            <button 
+            <button
               onClick={() => fetchGraph(true)}
               disabled={refreshing || loading}
               className="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-blue-400 transition-all border border-slate-700 disabled:opacity-50"
@@ -492,23 +531,23 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
               <span className="text-[9px] font-bold uppercase">Refresh</span>
             </button>
           </div>
-        
-          <div className="grid grid-cols-4 gap-2">
-            <div className="bg-slate-900/60 border border-slate-800 p-2 rounded-lg text-center">
-              <div className="text-[9px] text-slate-500 uppercase mb-1">Users</div>
-              <div className="text-base font-bold text-white">{impact?.users ?? 0}</div>
+
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="bg-slate-900/60 border border-slate-800 p-1.5 rounded-lg text-center overflow-hidden">
+              <div className="text-[8px] text-slate-500 uppercase mb-0.5 truncate">Users</div>
+              <div className="text-sm font-bold text-white truncate">{impact?.users ?? 0}</div>
             </div>
-            <div className="bg-slate-900/60 border border-slate-800 p-2 rounded-lg text-center">
-              <div className="text-[9px] text-slate-500 uppercase mb-1">Groups</div>
-              <div className="text-base font-bold text-white">{impact?.groups ?? 0}</div>
+            <div className="bg-slate-900/60 border border-slate-800 p-1.5 rounded-lg text-center overflow-hidden">
+              <div className="text-[8px] text-slate-500 uppercase mb-0.5 truncate">Groups</div>
+              <div className="text-sm font-bold text-white truncate">{impact?.groups ?? 0}</div>
             </div>
-            <div className="bg-slate-900/60 border border-slate-800 p-2 rounded-lg text-center">
-              <div className="text-[9px] text-slate-500 uppercase mb-1">Apps</div>
-              <div className="text-base font-bold text-white">{impact?.apps ?? 0}</div>
+            <div className="bg-slate-900/60 border border-slate-800 p-1.5 rounded-lg text-center overflow-hidden">
+              <div className="text-[8px] text-slate-500 uppercase mb-0.5 truncate">Apps</div>
+              <div className="text-sm font-bold text-white truncate">{impact?.apps ?? 0}</div>
             </div>
-            <div className="bg-slate-900/60 border border-slate-800 p-2 rounded-lg text-center">
-              <div className="text-[9px] text-slate-500 uppercase mb-1">Critical</div>
-              <div className="text-base font-bold text-red-400">{impact?.critical ?? 0}</div>
+            <div className="bg-slate-900/60 border border-slate-800 p-1.5 rounded-lg text-center overflow-hidden">
+              <div className="text-[8px] text-slate-500 uppercase mb-0.5 truncate">Critical</div>
+              <div className="text-sm font-bold text-red-400 truncate">{impact?.critical ?? 0}</div>
             </div>
           </div>
         </div>
@@ -537,20 +576,19 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
                       {selectedNode.data.label}
                     </div>
                   </div>
-                  <div className={`shrink-0 text-[9px] px-2 py-0.5 rounded-full uppercase font-bold ${
-                    (selectedNode.data.riskClass ?? 0) >= 4 ? 'bg-red-900/70 text-red-300' :
-                    (selectedNode.data.riskClass ?? 0) >= 3 ? 'bg-orange-900/70 text-orange-300' :
-                    (selectedNode.data.riskClass ?? 0) >= 2 ? 'bg-yellow-900/70 text-yellow-300' :
-                    'bg-slate-800 text-slate-400'
-                  }`}>
-                    {['Safe','Low','Medium','High','Critical'][selectedNode.data.riskClass ?? 0] ?? 'Unknown'}
+                  <div className={`shrink-0 text-[9px] px-2 py-0.5 rounded-full uppercase font-bold ${(selectedNode.data.riskClass ?? 0) >= 4 ? 'bg-red-900/70 text-red-300' :
+                      (selectedNode.data.riskClass ?? 0) >= 3 ? 'bg-orange-900/70 text-orange-300' :
+                        (selectedNode.data.riskClass ?? 0) >= 2 ? 'bg-yellow-900/70 text-yellow-300' :
+                          'bg-slate-800 text-slate-400'
+                    }`}>
+                    {['Safe', 'Low', 'Medium', 'High', 'Critical'][selectedNode.data.riskClass ?? 0] ?? 'Unknown'}
                   </div>
                 </div>
                 <div className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold mb-2">
                   {selectedNode.data.nodeType || 'Unknown'}
                 </div>
                 {selectedNode.data.explanation && (
-                  <div className="text-[10px] text-amber-300/80 italic leading-relaxed border-l-2 border-amber-600/40 pl-2">
+                  <div className="text-[10px] text-amber-300/80 italic leading-relaxed border-l-2 border-amber-600/40 pl-2 break-words">
                     {selectedNode.data.explanation}
                   </div>
                 )}
@@ -578,15 +616,15 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
                     <div className="px-3 py-2 flex flex-col gap-2">
                       <div>
                         <div className="text-[8px] text-red-400 uppercase font-bold tracking-wider mb-0.5">⚠ Why?</div>
-                        <p className="text-[10px] text-slate-300 leading-relaxed">{opt.reason}</p>
+                        <p className="text-[10px] text-slate-300 leading-relaxed break-words">{opt.reason}</p>
                       </div>
                       <div>
                         <div className="text-[8px] text-emerald-400 uppercase font-bold tracking-wider mb-0.5">✓ How it helps</div>
-                        <p className="text-[10px] text-slate-300 leading-relaxed">{opt.benefit}</p>
+                        <p className="text-[10px] text-slate-300 leading-relaxed break-words">{opt.benefit}</p>
                       </div>
                       <div>
                         <div className="text-[8px] text-amber-400 uppercase font-bold tracking-wider mb-0.5">→ What happens</div>
-                        <p className="text-[10px] text-slate-300 leading-relaxed">{opt.impact}</p>
+                        <p className="text-[10px] text-slate-300 leading-relaxed break-words">{opt.impact}</p>
                       </div>
                     </div>
                   </div>
@@ -600,6 +638,22 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
                 )}
               </div>
 
+              {/* Advanced Remediation Link for SPs */}
+              {selectedNode && (selectedNode.data.nodeType === 'application' || selectedNode.data.nodeType === 'serviceprincipal') && (
+                <div className="mt-2 p-3 bg-slate-900/60 border border-slate-700 rounded-lg text-center">
+                  <a
+                    href="/users/permissions"
+                    className="text-[11px] text-blue-400 hover:text-blue-300 font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Settings2 className="w-3.5 h-3.5" />
+                    Advanced Permission Governance
+                  </a>
+                  <p className="text-[9px] text-slate-500 mt-1 italic leading-tight">
+                    Manage owners and granular API scopes in the Permissions section.
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={() => setSelectedNode(null)}
                 className="text-[10px] text-slate-500 hover:text-slate-300 underline text-center transition-colors"
@@ -611,7 +665,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
         </div>
       </div>
 
-      <div className="flex-1 relative bg-slate-950">
+      <div className="flex-1 relative bg-slate-950 overflow-hidden">
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-4">
@@ -620,7 +674,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
             </div>
           </div>
         )}
-        
+
         <ReactFlow
           key={refreshKey}
           nodes={nodes.map(n => remediatedNodes.has(n.id)
@@ -628,19 +682,38 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
             : n
           )}
           edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           onInit={(inst) => { flowInstance.current = inst; }}
           onNodeClick={handleNodeClick}
           fitView
-          minZoom={0.1}
-          maxZoom={2}
+          minZoom={0.5}
+          maxZoom={1.5}
+          nodesDraggable={!isLocked}
+          nodesFocusable={!isLocked}
+          style={{ background: '#0B1220' }}
+          proOptions={{ hideAttribution: true }}
           className="bg-transparent"
         >
           <Background color="#1E293B" gap={20} size={1} />
-          <Controls 
+          <Controls
             position="bottom-left"
-            showInteractive={true}
+            showInteractive={false}
             className="react-flow-custom-controls"
-          />
+          >
+            <ControlButton
+              onClick={() => setIsLocked(prev => !prev)}
+              title={isLocked ? 'Unlock nodes — drag to reposition' : 'Lock node positions'}
+            >
+              <span style={{ fontSize: '11px' }}>{isLocked ? '🔒' : '🔓'}</span>
+            </ControlButton>
+            <ControlButton
+              onClick={() => exportGraphAsPng(nodes, `EIES-Blast-Radius-${nodeId}.png`)}
+              title="Export as PNG"
+            >
+              <Download style={{ width: 12, height: 12, color: '#94a3b8' }} />
+            </ControlButton>
+          </Controls>
           <style>{`
             .react-flow-custom-controls {
               background: #0f172a !important;
@@ -667,22 +740,30 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
             }
           `}</style>
         </ReactFlow>
-        
-        <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-slate-900/90 border border-slate-700 p-1.5 rounded-full shadow-2xl backdrop-blur-md">
-           <div className="px-3 py-1 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                <span className="text-[10px] font-bold text-slate-300 uppercase">User/Member</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                <span className="text-[10px] font-bold text-slate-300 uppercase">Azure Role</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="text-[10px] font-bold text-slate-300 uppercase">Subscription</span>
-              </div>
-           </div>
+
+        <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-[#0F172A]/90 border border-slate-700 p-1.5 rounded-full shadow-2xl backdrop-blur-md pointer-events-none z-10">
+          <div className="px-3 py-1 flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span className="text-[9px] font-bold text-slate-300 uppercase">User</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
+              <span className="text-[9px] font-bold text-slate-300 uppercase">Group</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+              <span className="text-[9px] font-bold text-slate-300 uppercase">Role</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span className="text-[9px] font-bold text-slate-300 uppercase">Subscription</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <span className="text-[9px] font-bold text-slate-300 uppercase">Tenant</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
