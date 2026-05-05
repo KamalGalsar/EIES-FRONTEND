@@ -176,11 +176,14 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
 
     try {
       setRemediating(true);
+      // Strip non-serializable properties like JSX icons from the context
+      const { icon, ...serializableOpt } = opt;
+
       const response = await api.post('/Remediation/trigger-remediation', {
         action: opt.action,
         timestamp: new Date().toISOString(),
         context: {
-          ...opt,
+          ...serializableOpt,
           nodeId: selectedNode.id,
           nodeType: selectedNode.data?.nodeType,
           nodeLabel: selectedNode.data?.label
