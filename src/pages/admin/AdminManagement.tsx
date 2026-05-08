@@ -1,5 +1,4 @@
 // Frontend/src/pages/admin/AdminManagement.tsx
-
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext"; // <-- import custom toast hook
@@ -11,6 +10,7 @@ interface AvailableUser {
   id: number;
   name: string;
   email: string;
+  profilePicture?: string;
 }
 
 export default function AdminManagement() {
@@ -141,8 +141,19 @@ export default function AdminManagement() {
               return (
                 <tr key={admin.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-4 sm:px-6 py-4">
-                    <p className="font-medium text-gray-900 dark:text-white">{admin.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{admin.email}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-bold text-xs overflow-hidden shrink-0">
+                        {admin.profilePicture ? (
+                          <img src={admin.profilePicture} alt={admin.name} className="w-full h-full object-cover" />
+                        ) : (
+                          admin.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{admin.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{admin.email}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 sm:px-6 py-4">
                     <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${

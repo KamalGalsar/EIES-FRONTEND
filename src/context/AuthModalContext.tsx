@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-type AuthMode = 'signin' | 'signup' | null;
+type AuthMode = 'signin' | 'signup' | 'verification' | null;
 
 interface AuthModalContextType {
   isOpen: boolean;

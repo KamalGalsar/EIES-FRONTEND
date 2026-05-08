@@ -15,7 +15,7 @@ import ReactFlow, {
   type Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Download, Search, X } from "lucide-react";
+import { Download, Search, X, Lock, Unlock } from "lucide-react";
 import { exportGraphAsPng } from "../utils/graphExport";
 
 type NodeType = Node & {
@@ -593,7 +593,7 @@ function IdentityGraphContent() {
             onClick={() => setIsLocked(prev => !prev)}
             title={isLocked ? 'Unlock nodes — drag to reposition' : 'Lock node positions'}
           >
-            <span style={{ fontSize: '11px' }}>{isLocked ? '🔒' : '🔓'}</span>
+            <span style={{ fontSize: '11px' }}>{isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}</span>
           </ControlButton>
           <ControlButton
             onClick={() => exportGraphAsPng(nodes, 'EIES-Identity-Graph.png')}

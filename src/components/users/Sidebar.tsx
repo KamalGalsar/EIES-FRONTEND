@@ -10,6 +10,7 @@ import {
   Shield,
   X,
   ChevronRight,
+  UserCircle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -116,11 +117,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
         >
           <Shield className="w-8 h-8 text-blue-600 dark:text-blue-500" />
-          <span className="text-xl font-bold text-gray-900 dark:text-white">EIES Risk</span>
+          <span className="text-xl font-bold text-gray-900 dark:text-white">EIES</span>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center text-white font-bold text-sm">
-            {userInitials}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              userInitials
+            )}
           </div>
           <div>
             <p className="text-gray-900 dark:text-white font-medium">{displayName}</p>
@@ -158,38 +167,36 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Simplified Profile Section */}
-      <div className="px-4 py-2 mt-auto">
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+        {/* Admin Dashboard Return Button - Only for Admins */}
+        {user?.role === "Admin" && (
+          <button
+            onClick={() => {
+              navigate("/admin/admin-management");
+              onClose();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors border border-orange-100 dark:border-orange-800/50"
+          >
+            <Shield className="w-5 h-5" />
+            <span className="text-sm font-medium">Admin Dashboard</span>
+          </button>
+        )}
+
         <button
           onClick={() => {
-            navigate("/profile");
+            const profilePath = user?.role === "Admin" ? "/admin/profile" : "/user/profile";
+            navigate(profilePath);
             onClose();
           }}
-          className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-            location.pathname === "/profile"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            location.pathname === "/user/profile" || location.pathname === "/admin/profile"
               ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300"
               : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
           }`}
         >
-          <div className="flex items-center gap-3">
-            <Settings className="w-5 h-5" />
-            <span className="text-sm font-medium">Account Settings</span>
-          </div>
-          <ChevronRight className="w-4 h-4 opacity-50" />
+          <UserCircle className="w-5 h-5" />
+          <span className="text-sm font-medium">My Profile</span>
         </button>
-      </div>
-
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Analysis</p>
-          <p className="text-sm text-gray-900 dark:text-white">
-            {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
-          </p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">Live Monitoring</span>
-          </div>
-        </div>
       </div>
     </div>
   );

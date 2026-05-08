@@ -1,4 +1,5 @@
 // Frontend/src/pages/users/Product.tsx
+import { CheckCircle2 } from "lucide-react";
 
 export default function Resources() {
   return (
@@ -37,13 +38,13 @@ export default function Resources() {
               </p>
               <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
                 <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <span className="text-green-600">✓</span> Azure Entra ID setup
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Azure Entra ID setup
                 </span>
                 <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <span className="text-green-600">✓</span> First identity scan
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> First identity scan
                 </span>
                 <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <span className="text-green-600">✓</span> Risk report generation
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Risk report generation
                 </span>
               </div>
             </div>

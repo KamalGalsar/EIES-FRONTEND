@@ -1,5 +1,5 @@
 // Components/ResolveModal.tsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 /* ---------- Types ---------- */
 export interface OwnerDetail {
@@ -83,12 +83,25 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
   const [loadingPerms, setLoadingPerms] = useState(true);
 
   const [selectedOwnerId, setSelectedOwnerId] = useState("");
+  const [ownerDropdownOpen, setOwnerDropdownOpen] = useState(false);
   const [ownerActionLoading, setOwnerActionLoading] = useState(false);
   const [selectedPerms, setSelectedPerms] = useState<Set<string>>(new Set());
   const [revokeLoading, setRevokeLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const ownerDropdownRef = useRef<HTMLDivElement>(null);
 
   const currentOwners = sp.ownerDetails || [];
+  const selectedOwner = users.find(u => u.id === selectedOwnerId);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ownerDropdownRef.current && !ownerDropdownRef.current.contains(event.target as Node)) {
+        setOwnerDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -241,7 +254,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-visible mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div>
@@ -310,24 +323,46 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No owners assigned.</p>
             )}
 
-            <div className="flex gap-2">
-              <select
-                value={selectedOwnerId}
-                onChange={e => setSelectedOwnerId(e.target.value)}
-                disabled={loadingUsers || ownerActionLoading}
-                className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white px-3 py-2 disabled:opacity-50"
-              >
-                <option value="">-- Select a user --</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName} ({u.userPrincipalName})
-                  </option>
-                ))}
-              </select>
+            <div className="flex flex-col sm:flex-row gap-2 items-start">
+              <div className="relative w-full sm:flex-1 min-w-0" ref={ownerDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setOwnerDropdownOpen(open => !open)}
+                  disabled={loadingUsers || ownerActionLoading}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-left text-sm text-gray-900 dark:text-white px-3 py-2 disabled:opacity-50 flex items-center justify-between gap-2 overflow-hidden"
+                >
+                  <span className="truncate block overflow-hidden whitespace-nowrap">
+                    {selectedOwnerId
+                      ? `${selectedOwner?.displayName || ""} (${selectedOwner?.userPrincipalName || ""})`
+                      : "-- Select a user --"}
+                  </span>
+                  <svg className={`w-4 h-4 transition-transform ${ownerDropdownOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {ownerDropdownOpen && (
+                  <div className="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-xl">
+                    {users.map(u => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOwnerId(u.id);
+                          setOwnerDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                      >
+                        <span className="block truncate">{u.displayName} ({u.userPrincipalName})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={addOwner}
                 disabled={!selectedOwnerId || ownerActionLoading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md disabled:opacity-50 flex items-center gap-1"
+                className="w-full sm:w-auto sm:self-end px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 {ownerActionLoading && Icons.spinner}
                 Add

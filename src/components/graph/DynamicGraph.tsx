@@ -70,6 +70,12 @@ const TOP_PADDING = 80;
 // Removed unused getGapForCount
 
 // ---------------------------------------------------------------------------
+// React Flow stable types
+// ---------------------------------------------------------------------------
+const nodeTypes = {};
+const edgeTypes = {};
+
+// ---------------------------------------------------------------------------
 // Styling (extended with azureRole and subscription)
 // ---------------------------------------------------------------------------
 
@@ -602,7 +608,12 @@ function DynamicGraphContent() {
       try {
         setLoading(true);
 
-        const res = await fetch(`${API_BASE_URL}/api/entra/graph-full`);
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch(`${API_BASE_URL}/api/entra/graph-full`, {
+          headers: {
+            'Authorization': `Bearer ${token || ""}`
+          }
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: { nodes: GraphNode[]; edges: GraphEdge[] } = await res.json();
 
@@ -794,6 +805,8 @@ function DynamicGraphContent() {
         nodesDraggable={!isLocked}
         nodesFocusable={!isLocked}
         style={{ background: "#0B1220", height: "100%", width: "100%" }}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#1E293B" gap={16} />

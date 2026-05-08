@@ -108,12 +108,8 @@ export default function TopNav({ lockdown, onMenuClick }: TopNavProps) {
           </div>
         </div>
 
-        {/* Right section: Notifications & Profile */}
+        {/* Right section: Profile */}
         <div className="flex items-center gap-2 sm:gap-4">
-          <button className="relative p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
 
           <div className="relative">
             <button
@@ -121,8 +117,16 @@ export default function TopNav({ lockdown, onMenuClick }: TopNavProps) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
-                {userInitials}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium overflow-hidden">
+                {user?.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  userInitials
+                )}
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>

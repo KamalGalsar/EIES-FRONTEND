@@ -141,13 +141,27 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </button>
 
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
+          <div 
+            onClick={() => {
+              navigate("/");
+              onClose();
+            }}
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          >
             <Shield className="w-8 h-8 text-blue-600 dark:text-blue-500" />
             <span className="text-xl font-bold text-gray-900 dark:text-white">EIES</span>
           </div>
           <div className="mt-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-              {userInitials}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+              {user?.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                userInitials
+              )}
             </div>
             <div>
               <p className="text-gray-900 dark:text-white font-medium">{displayName}</p>
@@ -193,7 +207,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+          <button
+            onClick={() => {
+              navigate("/users");
+              onClose();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-100 dark:border-blue-800/50"
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="text-sm font-medium">User Dashboard</span>
+          </button>
+
           <button
             onClick={() => {
               navigate("/admin/profile");

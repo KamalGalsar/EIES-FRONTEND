@@ -92,14 +92,32 @@ export default function Alerts() {
   const formatTime = (iso: string) => {
     const date = new Date(iso);
     if (isNaN(date.getTime())) return iso;
+    
+    // Format for IST (Asia/Kolkata)
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    };
+    const istTime = new Intl.DateTimeFormat('en-IN', options).format(date);
+    
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / 60000);
+    
     if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes} min ago`;
+    
+    if (minutes < 60) {
+      return `${minutes} min ago (${istTime} IST)`;
+    }
+    
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-    return date.toLocaleString();
+    if (hours < 24) {
+      return `${hours} hour${hours > 1 ? "s" : ""} ago (${istTime} IST)`;
+    }
+    
+    return `${date.toLocaleDateString()} ${istTime} IST`;
   };
 
   if (loading && alerts.length === 0) {

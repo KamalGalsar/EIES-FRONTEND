@@ -11,6 +11,7 @@ export interface ProfileData {
   jobTitle?: string;
   location?: string;
   bio?: string;
+  profilePicture?: string;
   provider: string;
   isAdmin: boolean;
   createdAt: string;
@@ -24,6 +25,7 @@ export interface ProfileUpdatePayload {
   jobTitle?: string;
   location?: string;
   bio?: string;
+  profilePicture?: string;
 }
 
 export interface PasswordChangePayload {
@@ -69,5 +71,43 @@ export const profileService = {
       const err = await res.json();
       throw new Error(err.message || "Failed to change password");
     }
+  },
+  
+  async submitVerification(accessToken: string, payload: { ClientID: string; ClientSecret: string; TenantID: string }): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/api/profile/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Failed to submit verification");
+    }
+  },
+
+  async testConnection(accessToken: string, payload: { ClientID: string; ClientSecret: string; TenantID: string }): Promise<{ success: boolean; message: string; tenantDisplayName?: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/TestGraph/validate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
+  async getCredentials(accessToken: string): Promise<{ clientID: string; clientSecret: string; tenantID: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/profile/credentials`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Failed to load credentials");
+    }
+    return res.json();
   },
 };

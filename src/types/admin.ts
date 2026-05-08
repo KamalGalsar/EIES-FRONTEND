@@ -26,6 +26,7 @@ export interface AdminUser {
   createdBy: string;
   immutable?: boolean;
   riskLevel: 'low' | 'medium' | 'high';
+  profilePicture?: string;
 }
 
 export interface CurrentUser {
@@ -34,6 +35,7 @@ export interface CurrentUser {
   email: string;
   role: RoleType;
   roleLevel: number;
+  profilePicture?: string;
 }
 
 export const MOCK_ADMINS: AdminUser[] = [

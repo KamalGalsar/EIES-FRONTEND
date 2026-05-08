@@ -123,21 +123,34 @@ export default function Overview() {
     }
 
     try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        setLoading(false);
+        setLoadingBlast(false);
+        return;
+      }
+
       // Include credentials to send cookies/auth tokens
       const fetchOptions = {
         credentials: 'include' as RequestCredentials,
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       };
 
+      const refreshParam = showRetryState ? "refresh=true" : "";
+      const getUrl = (path: string) => {
+        const joiner = path.includes('?') ? '&' : '?';
+        return refreshParam ? `${API_BASE_URL}${path}${joiner}${refreshParam}` : `${API_BASE_URL}${path}`;
+      };
+
       const [usersRes, highRiskRes, toxicRes, blastRadiusRes, avgBlastRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/Entra/users`, fetchOptions),
-        fetch(`${API_BASE_URL}/api/Risk/scores/high-risk?threshold=0.7`, fetchOptions),
-        fetch(`${API_BASE_URL}/api/Toxic/findings`, fetchOptions),
-        fetch(`${API_BASE_URL}/api/Toxic/blast-radius-all`, fetchOptions),
-        fetch(`${API_BASE_URL}/api/Risk/average-blast-radius`, fetchOptions)
+        fetch(getUrl("/api/Entra/users"), fetchOptions),
+        fetch(getUrl("/api/Risk/scores/high-risk?threshold=0.7"), fetchOptions),
+        fetch(getUrl("/api/Toxic/findings"), fetchOptions),
+        fetch(getUrl("/api/Toxic/blast-radius-all"), fetchOptions),
+        fetch(getUrl("/api/Risk/average-blast-radius"), fetchOptions)
       ]);
 
       if (!usersRes.ok) throw new Error(`Users API: ${usersRes.status}`);
@@ -219,50 +232,10 @@ export default function Overview() {
   return (
     <div className="space-y-6">
       {/* Graph + Sidebar (unchanged) */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 min-w-0">
-          <div className="h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)] bg-[#0B1220] rounded-lg overflow-hidden">
-            <DynamicGraph />
-          </div>
-        </div>
-
-        <div className="w-full lg:w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg flex flex-col h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)]">
-          {/* Sidebar content - same as before */}
-          <div className="p-5 pb-2 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              AI Risk Analysis
-            </h3>
-          </div>
-          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
-            {MOCK_AI_EXPLANATIONS.map((exp) => (
-              <div key={exp.id} className={`p-3 rounded-lg ${exp.severity === "critical" ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800" : "bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800"}`}>
-                <p className={`text-sm font-medium ${exp.severity === "critical" ? "text-red-700 dark:text-red-400" : "text-yellow-700 dark:text-yellow-400"}`}>{exp.title}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{exp.description}</p>
-              </div>
-            ))}
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-right pt-2">Last analysis: 17-03-2026</div>
-          </div>
-          <div className="p-5 pt-2 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Remediation Checklist</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {MOCK_REMEDIATIONS.map((action) => (
-                <button key={action.id} onClick={() => showRemediationModal(action.label)} className="w-full group flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition-all duration-200 text-left">
-                  <div className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-500 group-hover:border-blue-500 dark:group-hover:border-blue-400 transition-colors duration-200" />
-                  <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{action.label}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${action.label.includes("PIM") ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" : action.label.includes("group") ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" : action.label.includes("Revoke") ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"}`}>
-                    {action.label.includes("PIM") ? "PIM" : action.label.includes("group") ? "Group" : action.label.includes("Revoke") ? "Critical" : "CA"}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                {/* <span>3 pending actions</span> */}
-                {/* <button className="text-blue-600 dark:text-blue-400 hover:underline">Apply all</button> */}
-              </div>
-            </div>
-          </div>
+      {/* Identity Graph - Full Width */}
+      <div className="w-full">
+        <div className="h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)] bg-[#0B1220] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
+          <DynamicGraph />
         </div>
       </div>
 
@@ -282,7 +255,10 @@ export default function Overview() {
 
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
-            ⚠️ {error}
+          <div className="flex items-center text-red-700 dark:text-red-400">
+            <AlertTriangle className="w-5 h-5 mr-2" />
+            {error}
+          </div>
           </div>
         )}
 

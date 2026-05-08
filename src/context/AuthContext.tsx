@@ -7,7 +7,9 @@ interface AuthUser {
   email: string;
   name: string;
   provider?: string;
-  role: string; // For Admin/User
+  role: string;
+  profilePicture?: string;
+  isVerified: boolean;
 }
 
 interface AuthContextType {
@@ -23,8 +25,12 @@ interface AuthContextType {
     name: string;
     provider?: string;
     role: string; 
+    profilePicture?: string;
+    isVerified: boolean;
   }) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
+  markVerified: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,6 +57,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const storedName = localStorage.getItem("userName") || "";
     const storedProvider = localStorage.getItem("userProvider") || "";
     const storedRole = localStorage.getItem("userRole") || "User";
+    const storedPhoto = localStorage.getItem("userPhoto") || "";
+    const storedVerified = localStorage.getItem("userIsVerified") === "true";
 
     if (storedAccess && storedRefresh) {
       setAccessToken(storedAccess);
@@ -59,13 +67,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email: storedEmail,
         name: storedName,
         provider: storedProvider,
-        role: storedRole, // set role from storage
+        role: storedRole,
+        profilePicture: storedPhoto,
+        isVerified: storedVerified,
       });
+      
+      // Auto-refresh to get latest photo/name from DB
+      fetch(`${BACKEND}/api/profile`, {
+        headers: { Authorization: `Bearer ${storedAccess}` },
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          localStorage.setItem("userPhoto", data.profilePicture || "");
+          setUser(prev => prev ? { ...prev, profilePicture: data.profilePicture } : null);
+        }
+      })
+      .catch(err => console.error("Mount refresh error:", err));
     }
 
     setIsLoading(false);
   }, []);
 
+  const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
   // LOGIN — stores tokens and updates state.
   const login = (data: {
     accessToken: string;
@@ -74,6 +98,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     name: string;
     provider?: string;
     role: string;
+    profilePicture?: string;
+    isVerified: boolean;
   }) => {
     localStorage.setItem("accessToken", data.accessToken);
     localStorage.setItem("refreshToken", data.refreshToken);
@@ -81,6 +107,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("userName", data.name || "");
     localStorage.setItem("userProvider", data.provider || "");
     localStorage.setItem("userRole", data.role || "User");
+    localStorage.setItem("userPhoto", data.profilePicture || "");
+    localStorage.setItem("userIsVerified", data.isVerified ? "true" : "false");
 
     setAccessToken(data.accessToken);
     setRefreshToken(data.refreshToken);
@@ -89,9 +117,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       name: data.name,
       provider: data.provider,
       role: data.role,
+      profilePicture: data.profilePicture,
+      isVerified: data.isVerified,
     });
+
+    // NEW: Fetch full profile to get photo/details if missing
+    fetch(`${BACKEND}/api/profile`, {
+      headers: { Authorization: `Bearer ${data.accessToken}` },
+    })
+    .then(res => res.ok ? res.json() : null)
+    .then(profileData => {
+      if (profileData) {
+        localStorage.setItem("userName", profileData.name || data.name || "");
+        localStorage.setItem("userPhoto", profileData.profilePicture || "");
+        setUser(prev => prev ? {
+          ...prev,
+          name: profileData.name || prev.name,
+          profilePicture: profileData.profilePicture
+        } : null);
+      }
+    })
+    .catch(err => console.error("Login refresh error:", err));
   };
-  const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
   // LOGOUT
   const logout = async () => {
     try {
@@ -118,8 +165,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);
-
+    localStorage.removeItem("userPhoto");
+ 
     navigate("/signin");
+  };
+
+  const refreshUser = async () => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${BACKEND}/api/profile`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("userName", data.name || "");
+        localStorage.setItem("userPhoto", data.profilePicture || "");
+        setUser(prev => prev ? {
+          ...prev,
+          name: data.name,
+          profilePicture: data.profilePicture
+        } : null);
+      }
+    } catch (err) {
+      console.error("Failed to refresh user:", err);
+    }
   };
 
   return (
@@ -132,6 +201,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isLoading,
         login,
         logout,
+        refreshUser,
+        markVerified: () => {
+          localStorage.setItem("userIsVerified", "true");
+          setUser(prev => prev ? { ...prev, isVerified: true } : null);
+        },
       }}
     >
       {children}

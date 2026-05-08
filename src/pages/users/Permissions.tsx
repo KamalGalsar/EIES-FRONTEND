@@ -363,15 +363,17 @@ export default function Permissions() {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
       // Force backend to skip its cache and return fresh data
       const url = isRefresh
-        ? `${baseUrl}/api/SpAnalysis?refresh=true`
+        ? `${baseUrl}/api/SpAnalysis?refresh=true&t=${Date.now()}`
         : `${baseUrl}/api/SpAnalysis`;
 
       const res = await fetch(url, {
         method: "GET",
-        cache: "no-store", // Prevent browser from serving cached response
+        cache: "no-store",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
         },
       });
 

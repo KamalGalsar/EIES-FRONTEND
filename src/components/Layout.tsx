@@ -5,7 +5,6 @@ import { useEffect } from "react";
 import { useAuthModal } from "../context/AuthModalContext";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import AuthModal from "./AuthModal";
 
 export default function Layout() {
   const { isOpen } = useAuthModal();
@@ -45,7 +44,6 @@ export default function Layout() {
       </main>
 
       <Footer />
-      <AuthModal />
     </div>
   );
 }

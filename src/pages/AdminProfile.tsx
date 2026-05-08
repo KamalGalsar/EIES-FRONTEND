@@ -25,6 +25,7 @@ import {
   Key,
   Loader2,
   Activity,
+  Camera,
 } from "lucide-react";
 
 // Validation helpers
@@ -182,7 +183,7 @@ function Field({
 
 // Main Component
 export default function AdminProfile() {
-  const { accessToken, user: ctxUser } = useAuth();
+  const { accessToken, user: ctxUser, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -202,6 +203,7 @@ export default function AdminProfile() {
   const [pwSaving, setPwSaving] = useState(false);
 
   const toastKey = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string, type: ToastType) => {
     toastKey.current++;
@@ -266,9 +268,14 @@ export default function AdminProfile() {
         jobTitle: form.jobTitle,
         location: form.location,
         bio: form.bio,
+        profilePicture: form.profilePicture,
       });
       setProfile(updated);
-      setForm(updated);
+      setForm(prev => ({ ...prev, ...updated })); // Merge to ensure we keep the photo in state
+      
+      // Refresh global user state to update Sidebar/TopNav
+      console.log("Profile updated, refreshing user state...", updated);
+      await refreshUser();
       setEditing(false);
       setErrors({});
       showToast("Profile updated successfully", "success");
@@ -283,6 +290,23 @@ export default function AdminProfile() {
     setForm(profile ?? {});
     setEditing(false);
     setErrors({});
+  };
+ 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+ 
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Image size should be less than 2MB", "error");
+      return;
+    }
+ 
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setForm((f) => ({ ...f, profilePicture: base64 }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePasswordChange = async () => {
@@ -366,7 +390,7 @@ export default function AdminProfile() {
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-blue-600" />
               <span className="text-gray-900 dark:text-white font-semibold text-sm">
-                EIES Risk
+                EIES
               </span>
             </div>
           </div>
@@ -410,11 +434,39 @@ export default function AdminProfile() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         {/* Hero - responsive + dark borders */}
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 shadow-sm">
-          <div className="relative">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg">
-              {initials}
+          <div className="relative group">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg overflow-hidden">
+              {form.profilePicture ? (
+                <img
+                  src={form.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                initials
+              )}
+
+              {/* Camera Overlay - Only when editing */}
+              {editing && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Change Photo"
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                </button>
+              )}
             </div>
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" />
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full z-10" />
+            
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handlePhotoChange}
+              accept="image/*"
+              className="hidden"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">

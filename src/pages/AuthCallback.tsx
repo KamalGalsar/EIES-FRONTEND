@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { AlertTriangle } from 'lucide-react';
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -24,6 +25,7 @@ export default function AuthCallback() {
     const name = searchParams.get('name') ?? '';
     const provider = searchParams.get('provider') ?? '';
     const role = searchParams.get('role') ?? 'User';
+    const isVerified = searchParams.get('isVerified') === 'true';
     const error = searchParams.get('error');
     const mode = searchParams.get('mode') ?? 'signin';
 
@@ -74,6 +76,7 @@ export default function AuthCallback() {
         name: decodedName,
         provider,
         role,
+        isVerified,
       });
 
       showToast(
@@ -95,7 +98,7 @@ export default function AuthCallback() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center space-y-4">
-          <div className="text-red-500 text-6xl">⚠️</div>
+          <div className="text-red-500"><AlertTriangle className="w-16 h-16" /></div>
           <p className="text-gray-800 dark:text-gray-200 font-medium text-lg">{errorMsg}</p>
           <p className="text-sm text-gray-400 dark:text-gray-500">Redirecting you back...</p>
         </div>

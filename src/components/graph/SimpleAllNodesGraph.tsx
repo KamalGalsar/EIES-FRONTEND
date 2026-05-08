@@ -15,7 +15,7 @@ import ReactFlow, {
   type Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Download, Search, X } from "lucide-react";
+import { Download, Search, X, Lock, Unlock } from "lucide-react";
 import { exportGraphAsPng } from "../../utils/graphExport";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
@@ -69,6 +69,12 @@ function getGapForCount(count: number): number {
   if (count <= 14) return 220;
   return 260;
 }
+
+// ---------------------------------------------------------------------------
+// React Flow stable types
+// ---------------------------------------------------------------------------
+const nodeTypes = {};
+const edgeTypes = {};
 
 // ---------------------------------------------------------------------------
 // Styling
@@ -568,7 +574,12 @@ function SimpleAllNodesGraphContent() {
     const fetchGraph = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/api/entra/graph-full`);
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch(`${API_BASE_URL}/api/entra/graph-full`, {
+          headers: {
+            'Authorization': `Bearer ${token || ""}`
+          }
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: { nodes: GraphNode[]; edges: GraphEdge[] } = await res.json();
         console.log("Raw API data:", data);
@@ -752,6 +763,8 @@ function SimpleAllNodesGraphContent() {
         nodesDraggable={!isLocked}
         nodesFocusable={!isLocked}
         style={{ background: "#0B1220", height: "100%", width: "100%" }}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#1E293B" gap={16} />
@@ -763,7 +776,7 @@ function SimpleAllNodesGraphContent() {
             onClick={() => setIsLocked(prev => !prev)}
             title={isLocked ? 'Unlock nodes — drag to reposition' : 'Lock node positions'}
           >
-            <span style={{ fontSize: '11px' }}>{isLocked ? '🔒' : '🔓'}</span>
+            <span style={{ fontSize: '11px' }}>{isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}</span>
           </ControlButton>
           <ControlButton
             onClick={() => exportGraphAsPng(nodes, 'EIES-Full-Directory.png')}

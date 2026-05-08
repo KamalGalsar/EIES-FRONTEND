@@ -13,7 +13,7 @@ import ReactFlow, {
 // Import types separately for Vite compatibility
 import type { Node, Edge, ReactFlowInstance } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { ShieldAlert, Info, RotateCcw, Lock, UserMinus, AlertTriangle, Zap, CheckCircle2, RefreshCw, X, Download, Settings2 } from 'lucide-react';
+import { ShieldAlert, Info, RotateCcw, Lock, Unlock, UserMinus, AlertTriangle, Zap, CheckCircle2, RefreshCw, X, Download, Settings2 } from 'lucide-react';
 import { exportGraphAsPng } from '../../utils/graphExport';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -355,7 +355,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
       return [
         {
           id: 'remove',
-          label: 'Audit Members',
+          label: 'Remove group membership',
           icon: <UserMinus className="w-4 h-4" />,
           action: 'Remove from privileged groups',
           reason: `This group (risk class ${riskClass}) expands the attack surface through nested membership.`,
@@ -431,9 +431,10 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
       /* REMOVED: Automatic fitView on every fetch that reset manual placement. Initial fitView is still handled by ReactFlow props if needed or can be called once. */
 
       if (forceRefresh) showToast('Blast radius updated from Azure', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch blast radius:', error);
-      showToast('Failed to refresh graph data', 'error');
+      const message = error?.response?.data?.error || error?.message || 'Failed to refresh graph data';
+      showToast(message, 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -609,7 +610,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
                         disabled={remediating || remediatedNodes.has(selectedNode?.id)}
                         className="bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[9px] px-3 py-1 rounded-full font-bold transition-all whitespace-nowrap"
                       >
-                        {remediating ? '⏳' : remediatedNodes.has(selectedNode?.id) ? '✓ Done' : 'Apply'}
+                        {remediating ? <RefreshCw className="w-3 h-3 animate-spin" /> : remediatedNodes.has(selectedNode?.id) ? <><CheckCircle2 className="w-3 h-3" /> Done</> : 'Apply'}
                       </button>
                     </div>
                     {/* Why / How / What — always visible */}
@@ -705,7 +706,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
               onClick={() => setIsLocked(prev => !prev)}
               title={isLocked ? 'Unlock nodes — drag to reposition' : 'Lock node positions'}
             >
-              <span style={{ fontSize: '11px' }}>{isLocked ? '🔒' : '🔓'}</span>
+              <span style={{ fontSize: '11px' }}>{isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}</span>
             </ControlButton>
             <ControlButton
               onClick={() => exportGraphAsPng(nodes, `EIES-Blast-Radius-${nodeId}.png`)}

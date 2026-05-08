@@ -106,28 +106,30 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   };
 
   const formatTime = (dateStr: string) => {
-    // Ensure the date string is treated as UTC if it doesn't have a timezone indicator
-    let normalizedDateStr = dateStr;
-    if (dateStr && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
-      normalizedDateStr = dateStr + 'Z';
-    }
-    
-    const date = new Date(normalizedDateStr);
+    const date = new Date(dateStr);
     const now = new Date();
+    
+    // Format for IST display
+    const options: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    };
+    const istTime = new Intl.DateTimeFormat('en-IN', options).format(date);
     
     // Calculate difference in seconds
     const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
     // If diff is negative (clock drift), treat as 'Just now'
-    if (diffSeconds < 30) return 'Just now';
+    if (diffSeconds < 30) return `Just now (${istTime} IST)`;
     
     const diffMins = Math.floor(diffSeconds / 60);
-    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffMins < 60) return `${diffMins} mins ago (${istTime} IST)`;
     
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago (${istTime} IST)`;
     
-    return date.toLocaleDateString();
+    return `${date.toLocaleDateString()} ${istTime} IST`;
   };
 
   const getIcon = (severity: string, type: string) => {
@@ -413,8 +415,6 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
                     </div>
                   )}
                 </div>
-
-
               </div>
             )}
           </div>
@@ -425,8 +425,16 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center text-white text-xs font-medium">
-                {userInitials}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-600 to-orange-600 flex items-center justify-center text-white text-xs font-medium overflow-hidden">
+                {user?.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  userInitials
+                )}
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>

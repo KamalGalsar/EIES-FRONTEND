@@ -1,6 +1,6 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/" }],
-  "installCommand": "npm install --include=optional",
   "buildCommand": "npm run build",
+  "installCommand": "npm install --include=optional",
   "framework": "vite"
 }

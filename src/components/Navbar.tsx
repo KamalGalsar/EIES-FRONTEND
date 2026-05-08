@@ -169,7 +169,13 @@ function ProfileMenu() {
             <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         ) : isAuthenticated ? (
-          <span className="text-sm font-semibold">{getInitials()}</span>
+          <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+            {user?.profilePicture ? (
+              <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-sm font-semibold">{getInitials()}</span>
+            )}
+          </div>
         ) : (
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
