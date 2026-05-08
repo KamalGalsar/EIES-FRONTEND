@@ -64,6 +64,10 @@ export default function AuthModal() {
   const [screenshotIdx, setScreenshotIdx] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // New state for expandable Terms & Privacy lists
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
   const screenshotPaths = Array.from({ length: 14 }, (_, idx) =>
     new URL(`../assets/img_${idx}.png`, import.meta.url).href
   );
@@ -87,6 +91,8 @@ export default function AuthModal() {
       setScreenshots([...SCREENSHOT_COMMENTS]);
       setScreenshotIdx(0);
       setIsFullscreen(false);
+      setShowTerms(false);
+      setShowPrivacy(false);
     }
   }, [isOpen, contextMode]);
 
@@ -473,33 +479,91 @@ Write-Host "Secret expires on: $($endDate.ToString('yyyy-MM-dd'))"
           <div className="p-6 sm:p-8 flex-1 overflow-y-auto">
             {/* Step 1: Terms & Conditions */}
             {step === 0 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Terms & Conditions
                 </h3>
-                <div className="prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <p>
-                    By using this service, you agree to follow all applicable laws and regulations.
-                    You are responsible for maintaining the confidentiality of your credentials and
-                    for all activities that occur under your account. We reserve the right to suspend
-                    or terminate accounts that violate these terms.
-                  </p>
-                  <p>
-                    This service is provided “as is” without any warranties, express or implied.
-                    We do not guarantee uninterrupted or error‑free operation. In no event shall we
-                    be liable for any damages arising from the use of this service.
-                  </p>
-                  <p>
-                    For full details, please read our{' '}
-                    <a href="/terms" className="text-blue-600 dark:text-blue-400 underline">
-                      Terms of Service
-                    </a>{' '}
-                    and{' '}
-                    <a href="/privacy" className="text-blue-600 dark:text-blue-400 underline">
-                      Privacy Policy
-                    </a>.
-                  </p>
+
+                {/* Compact, friendly terms */}
+                <div className="bg-white dark:bg-gray-800/80 border border-black/5 dark:border-white/5 rounded-xl p-5 space-y-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <strong>You’re in control.</strong> You’re responsible for keeping your credentials safe. Everything you do under your account is your responsibility.
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <strong>Play fair.</strong> You agree not to misuse the service or break any laws. We can suspend accounts that violate these rules.
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <strong>Service “as is”.</strong> We provide the platform “as is” without warranties. We’re not liable for any damages or losses from using it.
+                    </p>
+                  </div>
+
+                  {/* Expandable Terms & Privacy inline */}
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <strong>By proceeding, you confirm you’ve read and agree to our{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowTerms(!showTerms)}
+                          className="text-blue-600 dark:text-blue-400 underline font-medium hover:no-underline"
+                        >
+                          Terms of Service
+                        </button>
+                        {' '}and{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowPrivacy(!showPrivacy)}
+                          className="text-blue-600 dark:text-blue-400 underline font-medium hover:no-underline"
+                        >
+                          Privacy Policy
+                        </button>.
+                      </strong>
+                    </p>
+
+                    {/* Terms of Service list */}
+                    {showTerms && (
+                      <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 animate-fadeIn text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                        <p className="font-semibold mb-1">Key Terms of Service:</p>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>You must use the service only for lawful purposes and in compliance with all applicable laws.</li>
+                          <li>You are responsible for maintaining the confidentiality of your credentials and for all activities under your account.</li>
+                          <li>We reserve the right to suspend or terminate accounts that violate these terms without prior notice.</li>
+                          <li>We may update these terms from time to time; continued use after changes means acceptance.</li>
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Privacy Policy list */}
+                    {showPrivacy && (
+                      <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 animate-fadeIn text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                        <p className="font-semibold mb-1">Key Privacy Policy:</p>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>We collect only the minimum information necessary to provide and improve the service (e.g., account details, usage logs).</li>
+                          <li>Your data is stored securely and encrypted at rest and in transit. Only you can access your secrets.</li>
+                          <li>We never sell your personal data to third parties. We may share it only as required by law or to protect our rights.</li>
+                          <li>You can request access, correction, or deletion of your personal data at any time via your account settings or by contacting support.</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Acceptance checkbox – unchanged */}
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -661,7 +725,17 @@ Write-Host "Secret expires on: $($endDate.ToString('yyyy-MM-dd'))"
                       className="w-full px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
-                  <span>Never share your client secret. These credentials will be encrypted.</span>
+
+                  {/* Improved security reminder */}
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="3" y="11" width="18" height="11" rx="2" strokeWidth="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeWidth="2" />
+                    </svg>
+                    <span>
+                      <strong>Your secrets are safe.</strong> They’re encrypted and only you can access them.
+                    </span>
+                  </div>
                 </div>
                 
                 <button

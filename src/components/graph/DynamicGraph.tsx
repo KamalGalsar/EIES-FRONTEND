@@ -15,7 +15,7 @@ import ReactFlow, {
   type Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Download, Search, X } from "lucide-react";
+import { Download, Search, X, Lock, Unlock } from "lucide-react";
 import { exportGraphAsPng } from "../../utils/graphExport";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
@@ -818,7 +818,7 @@ function DynamicGraphContent() {
             onClick={() => setIsLocked(prev => !prev)}
             title={isLocked ? 'Unlock nodes — drag to reposition' : 'Lock node positions'}
           >
-            <span style={{ fontSize: '11px' }}>{isLocked ? '🔒' : '🔓'}</span>
+            {isLocked ? <Lock style={{ width: 14, height: 14, color: '#94a3b8' }} /> : <Unlock style={{ width: 14, height: 14, color: '#94a3b8' }} />}
           </ControlButton>
           <ControlButton
             onClick={() => exportGraphAsPng(nodes, 'EIES-Risk-Overview.png')}
