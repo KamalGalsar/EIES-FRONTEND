@@ -10,8 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.15",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.3",
     "@types/dagre": "^0.7.54",
     "axios": "^1.15.0",
     "dagre": "^0.8.5",
