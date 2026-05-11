@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import ResolveModal, { type SpAnalysisItem } from "../../components/ResolveModal";
 import { useToast } from "../../context/ToastContext";
 
-/* ---------- Local type ---------- */
 interface SpAnalysisItemLocal extends SpAnalysisItem {}
 
-/* ---------- Cache helpers (sessionStorage, 1 hour) ---------- */
 const CACHE_KEY = "sp_analysis_cache_v4";
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
@@ -39,7 +37,6 @@ const clearCache = () => {
   sessionStorage.removeItem(CACHE_KEY);
 };
 
-/* ---------- Helper: group raw data ---------- */
 function groupFindings(items: SpAnalysisItemLocal[]) {
   const noOwnerToxicHigh: SpAnalysisItemLocal[] = [];
   const withOwnerToxic: SpAnalysisItemLocal[] = [];
@@ -61,7 +58,6 @@ function groupFindings(items: SpAnalysisItemLocal[]) {
   return { noOwnerToxicHigh, withOwnerToxic, noOwnerLowMedium };
 }
 
-/* ---------- Inline SVG icons ---------- */
 const Icons = {
   ownerMissing: (
     <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -136,7 +132,6 @@ function Badge({ text, className }: { text: string; className: string }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${className}`}>{text}</span>;
 }
 
-/* ---------- Collapsible section component ---------- */
 function CollapsibleSection({
   title,
   icon,
@@ -169,7 +164,6 @@ function CollapsibleSection({
   );
 }
 
-/* ---------- Permissions display ---------- */
 function PermissionsList({ permissions }: { permissions: string[] }) {
   const [showAll, setShowAll] = useState(false);
   const MAX_VISIBLE = 5;
@@ -218,7 +212,6 @@ function PermissionsList({ permissions }: { permissions: string[] }) {
   );
 }
 
-/* ---------- Reasons display ---------- */
 function ReasonsList({ reasons }: { reasons: string[] }) {
   if (!reasons || reasons.length === 0) return null;
   return (
@@ -246,7 +239,6 @@ function EmptyMessage({ text }: { text: string }) {
   );
 }
 
-/* ---------- Single SP item display ---------- */
 function SpItem({
   item,
   showPerms,
@@ -332,8 +324,7 @@ function SpItem({
     </div>
   );
 }
-
-/* ---------- Main Component ---------- */
+// Main component
 export default function Permissions() {
   const [grouped, setGrouped] = useState<ReturnType<typeof groupFindings> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -442,7 +433,6 @@ export default function Permissions() {
 
   return (
     <>
-      {/* Refresh overlay – now covers the whole page with a grey translucent background */}
       {refreshing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3 shadow-xl">

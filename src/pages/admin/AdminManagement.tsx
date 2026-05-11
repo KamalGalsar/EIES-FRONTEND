@@ -1,7 +1,7 @@
 // Frontend/src/pages/admin/AdminManagement.tsx
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
-import { useToast } from "../../context/ToastContext"; // <-- import custom toast hook
+import { useToast } from "../../context/ToastContext"; 
 import { userApi } from "../../services/api";
 import { canModify, type RoleType, type AdminUser, type CurrentUser } from "../../types/admin";
 
@@ -105,7 +105,6 @@ export default function AdminManagement() {
 
   if (!currentUser) return null;
 
-  // Only CEO or CTO can see the Add Admin button
   const canAddAdmin = currentUser.role === 'CEO' || currentUser.role === 'CTO';
 
   return (

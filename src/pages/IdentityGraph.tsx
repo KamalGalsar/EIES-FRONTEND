@@ -120,7 +120,6 @@ function IdentityGraphContent() {
         let mediumRisk = 0;
         let lowRisk = 0;
 
-        // VERTICAL LAYOUT
 
         // 1. TENANT - Top center
         newNodes.push({

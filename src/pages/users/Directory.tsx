@@ -26,7 +26,7 @@ interface EntraGroup {
   mail: string | null;
 }
 
-// Risk score types (commented out for now)
+// Risk score types 
 // interface RiskScoreData {
 //   nodeId: string;
 //   riskScore: number;
@@ -101,7 +101,6 @@ export default function Directory() {
 
       const all = [...users, ...groups];
 
-      // Risk scores temporarily disabled
       // try {
       //   const riskRes = await api.get<RiskScoreData[]>("/risk/scores");
       //   const riskMap = new Map(riskRes.data.map((r) => [r.nodeId, r]));

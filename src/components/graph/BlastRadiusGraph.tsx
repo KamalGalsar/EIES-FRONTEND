@@ -10,7 +10,6 @@ import ReactFlow, {
   useNodesState,
   useEdgesState
 } from 'reactflow';
-// Import types separately for Vite compatibility
 import type { Node, Edge, ReactFlowInstance } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { ShieldAlert, Info, RotateCcw, Lock, Unlock, UserMinus, AlertTriangle, Zap, CheckCircle2, RefreshCw, X, Download, Settings2 } from 'lucide-react';
@@ -105,7 +104,7 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
     byLevel.get(lvl)!.push(n.id);
   });
 
-  const LEVEL_HEIGHT = 200; // Balanced height for organic curves
+  const LEVEL_HEIGHT = 200; 
   const TOP_PADDING = 100;
 
   const rfNodes: Node[] = rawNodes.map((node) => {
@@ -136,7 +135,7 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
       id: node.id,
       data: {
         label: node.label,
-        nodeType: node.type,          // actual node type (user/group/etc)
+        nodeType: node.type,          
         riskClass: node.riskClass ?? 0,
         riskScore: node.riskScore ?? 0,
         explanation: node.explanation ?? '',
@@ -148,7 +147,7 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
       style: {
         ...getNodeStyle(node.type, node.riskClass, node.isStartNode),
       },
-      title: node.label // Add title for hover tooltip
+      title: node.label 
     };
   });
 
@@ -182,7 +181,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
   const [remediatedNodes, setRemediatedNodes] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ opt: any } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [isLocked, setIsLocked] = useState(true); // true = nodes are locked (cannot be dragged)
+  const [isLocked, setIsLocked] = useState(true); 
   const { showToast } = useToast();
   const flowInstance = useRef<ReactFlowInstance | null>(null);
 
@@ -222,7 +221,6 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
         setRemediatedNodes(prev => new Set([...prev, selectedNode.id]));
         showToast(`✓ ${response.data.message || 'Remediation applied successfully'}`, 'success');
 
-        // Re-fetch graph to reflect changes (with a slightly longer delay for Azure to propagate)
         setTimeout(async () => {
           await fetchGraph(true);
         }, 3500);
@@ -239,15 +237,12 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
 
   const getRemediationOptions = (node: any) => {
     if (!node) return [];
-    // node.data.nodeType holds the actual type (user/group/application/etc)
-    // node.type is a ReactFlow internal field ('input'/'default') — do NOT use it here
     const type = (node.data?.nodeType || '').toLowerCase();
     const riskClass: number = node.data?.riskClass ?? 0;
 
     if (type === 'user') {
       const opts: any[] = [];
 
-      // --- SMART PATH-BREAKING LOGIC ---
       const roleNodes = nodes.filter(n => {
         const t = ((n.data as any)?.nodeType || '').toLowerCase();
         return t === 'role' || t === 'azurerole';
@@ -328,7 +323,6 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
           }
         }
       }
-      // --- END SMART LOGIC ---
 
       opts.push(
         {
@@ -428,7 +422,6 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
       setEdges(rfEdges);
       setImpact(impactData);
 
-      /* REMOVED: Automatic fitView on every fetch that reset manual placement. Initial fitView is still handled by ReactFlow props if needed or can be called once. */
 
       if (forceRefresh) showToast('Blast radius updated from Azure', 'success');
     } catch (error: any) {

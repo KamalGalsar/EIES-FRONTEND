@@ -23,7 +23,6 @@ interface ToxicFinding {
   affectedEntityName: string;
 }
 
-// Static stats template (values will be updated dynamically)
 const baseStats = [
   { label: 'Total Users', value: '0', change: '+5.2%', icon: Users, color: 'blue' },
   { label: 'High Risk Identities', value: '0', change: '-12%', icon: AlertTriangle, color: 'red' },
@@ -43,8 +42,6 @@ export default function Overview() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Fetch all required data in parallel
-        // Note: /api/Risk/average-risk-score does NOT exist; we use average-blast-radius instead
         const token = localStorage.getItem('accessToken');
         const fetchOptions = {
           headers: {
@@ -86,7 +83,6 @@ export default function Overview() {
             if (stat.label === 'Unhealthy Permissions') return { ...stat, value: unhealthyPermsCount.toLocaleString() };
             if (stat.label === 'Service Principal Without Owner') return { ...stat, value: orphanedSPCount.toLocaleString() };
             if (stat.label === 'Risk Score') {
-              // Convert 0–1 scale to "X.X/10"
               const score = (averageBlast * 10).toFixed(1);
               return { ...stat, value: `${score}/10` };
             }

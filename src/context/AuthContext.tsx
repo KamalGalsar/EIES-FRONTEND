@@ -121,7 +121,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isVerified: data.isVerified,
     });
 
-    // NEW: Fetch full profile to get photo/details if missing
     fetch(`${BACKEND}/api/profile`, {
       headers: { Authorization: `Bearer ${data.accessToken}` },
     })

@@ -1,7 +1,7 @@
 // Frontend/src/components/users/CallToAction.tsx
 
 import { useState } from "react";
-import { Link } from "react-router-dom"; //Linking Routes
+import { Link } from "react-router-dom"; 
 
 export default function CallToAction() {
   const [email, setEmail] = useState("");
@@ -9,7 +9,6 @@ export default function CallToAction() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // typically send this to our API but for now it is dummy
     console.log("Email submitted:", email);
     setIsSubmitted(true);
     setTimeout(() => setIsSubmitted(false), 3000);

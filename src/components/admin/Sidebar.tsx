@@ -7,7 +7,7 @@ import {
   Users,
   GitBranch,
   Shield,
-  AlertTriangle,   // New icon for Active Alerts
+  AlertTriangle,   
   Brain,
   FileText,
   Scale,
@@ -82,7 +82,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       label: "Role Hierarchy",
       icon: GitBranch,
     },
-    // Replaced "Governance Controls" with "Active Alerts"
     {
       id: "active-alerts",
       path: "/admin/alerts",

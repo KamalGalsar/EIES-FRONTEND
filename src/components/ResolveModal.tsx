@@ -1,7 +1,6 @@
 // Components/ResolveModal.tsx
 import { useState, useEffect, useCallback, useRef } from "react";
 
-/* ---------- Types ---------- */
 export interface OwnerDetail {
   upn: string;
   objectId: string;
@@ -34,7 +33,6 @@ interface UserDto {
   accountEnabled?: boolean;
 }
 
-/* ---------- Icons ---------- */
 const Icons = {
   close: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -163,7 +161,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
         setMessage({ type: "success", text: "Owner added successfully." });
         setSelectedOwnerId("");
         onUpdated?.();
-        await fetchPermissions(); // Refresh permissions (owners might affect permissions? but safe)
+        await fetchPermissions(); 
       } else {
         const err = await res.json();
         setMessage({ type: "error", text: err.error || "Failed to add owner." });
@@ -237,9 +235,7 @@ export default function ResolveModal({ sp, onClose, onUpdated }: Props) {
     setSelectedPerms(new Set());
     setRevokeLoading(false);
 
-    // Refresh permissions from server to get the latest state
     await fetchPermissions();
-    // Notify parent to refresh its cache and analysis data
     onUpdated?.();
 
     if (failed.length === 0) {

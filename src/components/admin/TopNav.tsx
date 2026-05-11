@@ -18,7 +18,6 @@ export default function TopNav({ lockdown, onMenuClick }: TopNavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -38,7 +37,6 @@ export default function TopNav({ lockdown, onMenuClick }: TopNavProps) {
     };
   }, [showProfileMenu]);
 
-  // Close dropdown on Escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && showProfileMenu) {

@@ -8,7 +8,7 @@ interface RemediationModalProps {
   action: string;
   severity: string;
   status?: string | null;
-  onConfirm?: () => Promise<void>; // Add onConfirm callback
+  onConfirm?: () => Promise<void>; 
 }
 
 export function RemediationModal({ 

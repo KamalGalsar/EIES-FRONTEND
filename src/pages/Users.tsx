@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 /**
  * This component is kept for backward compatibility.
- * It immediately redirects to the new granular overview page (/users).
+ * It immediately redirects to the overview page (/users).
  */
 export default function Users() {
   const navigate = useNavigate();

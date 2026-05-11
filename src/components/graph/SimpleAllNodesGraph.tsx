@@ -20,9 +20,7 @@ import { exportGraphAsPng } from "../../utils/graphExport";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
-// ---------------------------------------------------------------------------
 // Types
-// ---------------------------------------------------------------------------
 
 interface GraphNode {
   id: string;
@@ -52,9 +50,7 @@ interface HierarchyResult {
   subtreeSize: Map<string, number>;
 }
 
-// ---------------------------------------------------------------------------
 // Layout constants
-// ---------------------------------------------------------------------------
 
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 50;
@@ -70,15 +66,9 @@ function getGapForCount(count: number): number {
   return 260;
 }
 
-// ---------------------------------------------------------------------------
-// React Flow stable types
-// ---------------------------------------------------------------------------
 const nodeTypes = {};
 const edgeTypes = {};
 
-// ---------------------------------------------------------------------------
-// Styling
-// ---------------------------------------------------------------------------
 
 const getNodeStyle = (type: string) => {
   const base = {
@@ -127,9 +117,7 @@ const getNodeDimensions = (type: string): { width: number; height: number } => {
   return { width: NODE_WIDTH, height: NODE_HEIGHT };
 };
 
-// ---------------------------------------------------------------------------
 // Step 1 — Detect and normalise edge direction
-// ---------------------------------------------------------------------------
 
 function detectAndNormaliseEdges(rawEdges: GraphEdge[], rootId: string): GraphEdge[] {
   const tenantAsParent = rawEdges.filter((e) => e.to === rootId).length;
@@ -141,9 +129,7 @@ function detectAndNormaliseEdges(rawEdges: GraphEdge[], rootId: string): GraphEd
   return rawEdges;
 }
 
-// ---------------------------------------------------------------------------
 // Step 2 — Build edges with multiple parents
-// ---------------------------------------------------------------------------
 
 function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   edges: NormalisedEdge[];
@@ -166,9 +152,7 @@ function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   return { edges, parentOf, childrenOf };
 }
 
-// ---------------------------------------------------------------------------
 // Step 3 — Depth calculation (max over all parents)
-// ---------------------------------------------------------------------------
 
 function computeDepths(rootId: string, parentOf: Map<string, string[]>): Map<string, number> {
   const depth = new Map<string, number>();
@@ -191,9 +175,7 @@ function computeDepths(rootId: string, parentOf: Map<string, string[]>): Map<str
   return depth;
 }
 
-// ---------------------------------------------------------------------------
 // Step 4 — Orphan adoption
-// ---------------------------------------------------------------------------
 
 function adoptOrphans(
   allNodeIds: Set<string>,
@@ -225,9 +207,7 @@ function adoptOrphans(
   return syntheticEdges;
 }
 
-// ---------------------------------------------------------------------------
 // Step 5 — Compute subtree depth and size (for all nodes, including tenant)
-// ---------------------------------------------------------------------------
 
 function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
   subtreeDepth: Map<string, number>;
@@ -266,9 +246,7 @@ function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
   return { subtreeDepth: memoDepth, subtreeSize: memoSize };
 }
 
-// ---------------------------------------------------------------------------
 // Step 6 — Center‑priority ordering for Level‑1 children (largest subtree in middle)
-// ---------------------------------------------------------------------------
 
 function centerBySubtreeSize(children: string[], subtreeSize: Map<string, number>): string[] {
   if (children.length <= 1) return children;
@@ -300,9 +278,7 @@ function centerBySubtreeSize(children: string[], subtreeSize: Map<string, number
   return result.filter(Boolean) as string[];
 }
 
-// ---------------------------------------------------------------------------
 // Step 7 — Master hierarchy builder
-// ---------------------------------------------------------------------------
 
 function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[]): HierarchyResult {
   const tenantNode = nodes.find(n => n.type === "tenant");
@@ -340,9 +316,7 @@ function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[]): HierarchyRes
   return { edges, depth, syntheticEdges, childrenOf, parentOf, subtreeDepth, subtreeSize };
 }
 
-// ---------------------------------------------------------------------------
 // Step 8 — Positioning for DAG (preserving centered order for level‑1)
-// ---------------------------------------------------------------------------
 
 function computePositions(
   nodes: Node[],
@@ -414,9 +388,7 @@ function computePositions(
   return positions;
 }
 
-// ---------------------------------------------------------------------------
 // Step 9 — Assemble layouted React Flow nodes and edges
-// ---------------------------------------------------------------------------
 
 function getLayoutedElements(
   nodes: Node[],
@@ -477,9 +449,7 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges: enhancedEdges };
 }
 
-// ---------------------------------------------------------------------------
 // Viewport calculation
-// ---------------------------------------------------------------------------
 
 function deriveViewport(
   nodes: Node[],
@@ -507,9 +477,7 @@ function deriveViewport(
   return { x: cx, y: cy, zoom };
 }
 
-// ---------------------------------------------------------------------------
 // Component
-// ---------------------------------------------------------------------------
 
 export default function SimpleAllNodesGraph() {
   return (

@@ -271,7 +271,7 @@ export default function AdminProfile() {
         profilePicture: form.profilePicture,
       });
       setProfile(updated);
-      setForm(prev => ({ ...prev, ...updated })); // Merge to ensure we keep the photo in state
+      setForm(prev => ({ ...prev, ...updated })); 
       
       // Refresh global user state to update Sidebar/TopNav
       console.log("Profile updated, refreshing user state...", updated);

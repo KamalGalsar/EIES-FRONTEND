@@ -357,7 +357,6 @@ export default function Navbar() {
     }`;
   };
 
-  // Close mobile menu when clicking outside, but ignore clicks on the hamburger button
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
@@ -379,7 +378,6 @@ export default function Navbar() {
     };
   }, [isMobileMenuOpen]);
 
-  // Close mobile menu when window is resized to desktop size
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
@@ -391,7 +389,6 @@ export default function Navbar() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Close mobile menu on escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isMobileMenuOpen) {

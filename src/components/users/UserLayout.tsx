@@ -26,10 +26,9 @@ export default function UserLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { showRemediationModal, isModalOpen, selectedAction, remediationStatus, closeModal, setRemediationStatus } = useRemediation();
   
-  // Dynamic dashboard stats
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
   const [activeGroups, setActiveGroups] = useState<number | null>(null);
-  const [riskScore, setRiskScore] = useState<number | null>(null);        // raw score (0-10)
+  const [riskScore, setRiskScore] = useState<number | null>(null);        
   const [riskLevel, setRiskLevel] = useState<string>("Loading...");
   const [userName, setUserName] = useState<string>("Loading...");
   const [loading, setLoading] = useState(true);

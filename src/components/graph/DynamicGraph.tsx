@@ -20,10 +20,6 @@ import { exportGraphAsPng } from "../../utils/graphExport";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface GraphNode {
   id: string;
   label: string;
@@ -56,28 +52,16 @@ interface HierarchyResult {
   subtreeSize: Map<string, number>;
 }
 
-// ---------------------------------------------------------------------------
-// Layout constants
-// ---------------------------------------------------------------------------
-
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 50;
 const TENANT_WIDTH = 200;
 const SUBSCRIPTION_WIDTH = 200;
-const LEVEL_HEIGHT = 220; // Balanced height for organic curves
+const LEVEL_HEIGHT = 220; 
 const TOP_PADDING = 80;
 
-// Removed unused getGapForCount
 
-// ---------------------------------------------------------------------------
-// React Flow stable types
-// ---------------------------------------------------------------------------
 const nodeTypes = {};
 const edgeTypes = {};
-
-// ---------------------------------------------------------------------------
-// Styling (extended with azureRole and subscription)
-// ---------------------------------------------------------------------------
 
 const getNodeStyle = (type: string) => {
   const base = {
@@ -163,7 +147,7 @@ const getNodeStyle = (type: string) => {
 };
 
 const getNodeDimensions = (label: string, type: string): { width: number; height: number } => {
-  const charWidth = 8; // Approx px per char for 11px bold font
+  const charWidth = 8; 
   const padding = 40;
   const estimatedWidth = Math.max(type === 'tenant' ? TENANT_WIDTH : NODE_WIDTH, (label?.length || 0) * charWidth + padding);
 
@@ -174,12 +158,9 @@ const getNodeDimensions = (label: string, type: string): { width: number; height
   return { width: estimatedWidth, height: NODE_HEIGHT };
 };
 
-// ---------------------------------------------------------------------------
 // Step 1 — Detect and normalise edge direction
-// ---------------------------------------------------------------------------
 
 function detectAndNormaliseEdges(rawEdges: GraphEdge[]): GraphEdge[] {
-  // Swap edges: backend sends Member -> Parent, we need Parent -> Member
   return rawEdges.map(e => ({
     ...e,
     from: e.to,
@@ -187,9 +168,7 @@ function detectAndNormaliseEdges(rawEdges: GraphEdge[]): GraphEdge[] {
   }));
 }
 
-// ---------------------------------------------------------------------------
 // Step 2 — Build edges with multiple parents
-// ---------------------------------------------------------------------------
 
 function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   edges: NormalisedEdge[];
@@ -217,9 +196,7 @@ function buildMultiParentEdges(normalisedRaw: GraphEdge[]): {
   return { edges, parentOf, childrenOf };
 }
 
-// ---------------------------------------------------------------------------
 // Step 3 — Depth calculation (max over all parents)
-// ---------------------------------------------------------------------------
 
 function computeDepths(rootId: string, parentOf: Map<string, string[]>): Map<string, number> {
   const depth = new Map<string, number>();
@@ -242,9 +219,7 @@ function computeDepths(rootId: string, parentOf: Map<string, string[]>): Map<str
   return depth;
 }
 
-// ---------------------------------------------------------------------------
 // Step 4 — Orphan adoption
-// ---------------------------------------------------------------------------
 
 function adoptOrphans(
   allNodeIds: Set<string>,
@@ -276,9 +251,7 @@ function adoptOrphans(
   return syntheticEdges;
 }
 
-// ---------------------------------------------------------------------------
 // Step 5 — Compute subtree depth and size (for all nodes)
-// ---------------------------------------------------------------------------
 
 function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
   subtreeDepth: Map<string, number>;
@@ -298,7 +271,7 @@ function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
       return { depth: 0, size: 1 };
     }
     let maxDepth = 0;
-    let totalSize = 1; // self
+    let totalSize = 1; 
     for (const child of kids) {
       const childMetrics = dfs(child);
       maxDepth = Math.max(maxDepth, childMetrics.depth + 1);
@@ -313,9 +286,7 @@ function computeSubtreeMetrics(childrenOf: Map<string, string[]>): {
   return { subtreeDepth: memoDepth, subtreeSize: memoSize };
 }
 
-// ---------------------------------------------------------------------------
 // Step 6 — Center‑priority ordering for Level‑1 children
-// ---------------------------------------------------------------------------
 
 function centerBySubtreeSize(children: string[], subtreeSize: Map<string, number>): string[] {
   if (children.length <= 1) return children;
@@ -347,9 +318,7 @@ function centerBySubtreeSize(children: string[], subtreeSize: Map<string, number
   return result.filter(Boolean) as string[];
 }
 
-// ---------------------------------------------------------------------------
 // Step 7 — Master hierarchy builder
-// ---------------------------------------------------------------------------
 
 function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[], createSyntheticEdges = true): HierarchyResult {
   const tenantNode = nodes.find(n => n.type === "tenant");
@@ -384,9 +353,7 @@ function buildHierarchy(nodes: GraphNode[], rawEdges: GraphEdge[], createSynthet
   return { edges, depth, syntheticEdges, childrenOf, parentOf, subtreeDepth, subtreeSize };
 }
 
-// ---------------------------------------------------------------------------
 // Step 8 — Positioning for DAG
-// ---------------------------------------------------------------------------
 
 function computePositions(
   nodes: Node[],
@@ -458,9 +425,7 @@ function computePositions(
   return positions;
 }
 
-// ---------------------------------------------------------------------------
 // Step 9 — Assemble layouted React Flow nodes and edges
-// ---------------------------------------------------------------------------
 
 function getLayoutedElements(
   nodes: Node[],
@@ -507,9 +472,7 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges: enhancedEdges };
 }
 
-// ---------------------------------------------------------------------------
 // Viewport calculation
-// ---------------------------------------------------------------------------
 
 function deriveViewport(
   nodes: Node[],
@@ -537,9 +500,7 @@ function deriveViewport(
   return { x: cx, y: cy, zoom };
 }
 
-// ---------------------------------------------------------------------------
 // Component
-// ---------------------------------------------------------------------------
 
 export default function DynamicGraph() {
   return (
@@ -638,7 +599,7 @@ function DynamicGraphContent() {
           data: { label: node.label, type: node.type },
           position: { x: 0, y: 0 },
           style: getNodeStyle(node.type),
-          title: node.label, // Hover tooltip
+          title: node.label, 
         }));
 
         const flowEdges: Edge[] = normEdges.map((e, i) => ({
@@ -674,7 +635,6 @@ function DynamicGraphContent() {
     fetchGraph();
   }, []);
 
-  // REMOVED: useEffect that called fitView on every node change, preventing manual placement.
 
   if (loading) {
     return (
