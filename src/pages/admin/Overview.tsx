@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Users, AlertTriangle, Shield, Eye, Server, Activity } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { maskPII } from "../../utils/privacy";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
@@ -32,12 +34,14 @@ const baseStats = [
   { label: 'Risk Score', value: '0.0/10', change: '-0.3', icon: Activity, color: 'green' }
 ];
 
+
 export default function Overview() {
   const [stats, setStats] = useState(baseStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [topBlastRadius, setTopBlastRadius] = useState<BlastRadiusItem[]>([]);
   const [loadingBlast, setLoadingBlast] = useState(true);
+  const { privacyMode } = useAuth();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -173,7 +177,13 @@ export default function Overview() {
             topBlastRadius.map((item) => (
               <div key={item.nodeId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{item.nodeName}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {privacyMode ? (
+                      <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                        {maskPII(item.nodeName)}
+                      </span>
+                    ) : item.nodeName}
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`px-2 py-0.5 text-xs rounded-full ${getNodeTypeBadge(item.nodeType)}`}>
                       {item.nodeType}

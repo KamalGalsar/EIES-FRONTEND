@@ -5,75 +5,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useAuthModal } from '../context/AuthModalContext';
+import ThemeToggle from "./common/ThemeToggle";
 
-function ThemeToggle() {
-  const getIsDark = () => {
-    if (typeof document === "undefined") return false;
-    const stored = localStorage.getItem("theme");
-    if (stored) return stored === "dark";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  };
-
-  const [isDark, setIsDark] = useState(getIsDark());
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDark]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => setIsDark(getIsDark());
-    mq.addEventListener?.("change", handler);
-    return () => mq.removeEventListener?.("change", handler);
-  }, []);
-
-  const toggle = () => setIsDark(!isDark);
-
-  return (
-    <button
-      onClick={toggle}
-      className="relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-      aria-label="Toggle color theme"
-      title="Toggle color theme"
-      type="button"
-    >
-      <span className={`absolute inset-0 rounded-full transition-colors ${
-        isDark 
-          ? "bg-indigo-600 dark:bg-indigo-500" 
-          : "bg-amber-400"
-      }`} />
-      
-      <span className={`absolute top-0.5 left-0.5 inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white transition-transform duration-200 ease-in-out ${
-        isDark ? "translate-x-7" : "translate-x-0"
-      }`}>
-        {isDark ? (
-          <svg className="h-4 w-4 text-indigo-700" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <path d="M21.64 13A9 9 0 1111 2.36 7 7 0 0021.64 13z" />
-          </svg>
-        ) : (
-          <svg className="h-4 w-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-        )}
-      </span>
-    </button>
-  );
-}
 
 function ProfileMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -143,6 +76,9 @@ function ProfileMenu() {
     if (user?.name) {
       return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
+    if (user?.alias) {
+      return user.alias.replace('EIES_', '').slice(0, 2).toUpperCase();
+    }
     if (user?.email) {
       return user.email[0].toUpperCase();
     }
@@ -200,7 +136,7 @@ function ProfileMenu() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     </span>
-                    {user?.name || user?.email?.split('@')[0] || 'User'}
+                    {user?.name || user?.alias || 'User'}
                   </>
                 ) : (
                   <>
@@ -405,7 +341,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur bg-white/70 dark:bg-gray-900/60 border-b border-black/10 dark:border-white/10">
+    <header className="sticky top-0 z-[100] backdrop-blur bg-white/70 dark:bg-gray-900/60 border-b border-black/10 dark:border-white/10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between text-black dark:text-white">
         {/* Logo */}
         <NavLink to="/" className="flex items-center gap-3" onClick={handleMobileLinkClick}>

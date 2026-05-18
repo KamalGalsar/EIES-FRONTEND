@@ -4,13 +4,30 @@ import { Search, Bell, User, LogOut, ChevronLeft, Menu, ShieldAlert, Zap, BarCha
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
+import ThemeToggle from "../common/ThemeToggle";
+import PrivacyToggle from "../common/PrivacyToggle";
 
 interface TopNavProps {
   onEmergency?: () => void;
   onMenuClick: () => void;
+  riskScoreDisplay?: string;
+  riskLevel?: string;
+  riskLevelColor?: string;
+  totalUsers?: number | null;
+  activeGroups?: number | null;
+  loadingStats?: boolean;
 }
 
-export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
+export default function TopNav({
+  onEmergency,
+  onMenuClick,
+  riskScoreDisplay = "--/10",
+  riskLevel = "Loading...",
+  riskLevelColor = "text-green-600 dark:text-green-400",
+  totalUsers = null,
+  activeGroups = null,
+  loadingStats = false
+}: TopNavProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { showToast } = useToast();
@@ -108,7 +125,7 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    
+
     // Format for IST display
     const options: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
@@ -116,19 +133,19 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
       hour12: true
     };
     const istTime = new Intl.DateTimeFormat('en-IN', options).format(date);
-    
+
     // Calculate difference in seconds
     const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     // If diff is negative (clock drift), treat as 'Just now'
     if (diffSeconds < 30) return `Just now (${istTime} IST)`;
-    
+
     const diffMins = Math.floor(diffSeconds / 60);
     if (diffMins < 60) return `${diffMins} mins ago (${istTime} IST)`;
-    
+
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago (${istTime} IST)`;
-    
+
     return `${date.toLocaleDateString()} ${istTime} IST`;
   };
 
@@ -178,7 +195,7 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
       const match = text.match(/New Password: ([^\s]+)/);
       if (match) toCopy = match[1];
     }
-    
+
     navigator.clipboard.writeText(toCopy);
     setCopiedId(id);
     showToast("Copied to clipboard!", "success");
@@ -189,18 +206,18 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      
+
       // Handle Profile Menu
       if (menuRef.current && !menuRef.current.contains(target) && buttonRef.current && !buttonRef.current.contains(target)) {
         setShowProfileMenu(false);
       }
-      
+
       // Handle Notifications
       if (notificationRef.current && !notificationRef.current.contains(target) && bellRef.current && !bellRef.current.contains(target)) {
         setShowNotifications(false);
       }
     }
-    
+
     if (showProfileMenu || showNotifications) {
       document.addEventListener('mousedown', handleClickOutside);
     }
@@ -244,10 +261,10 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
   const userInitials = getInitials(displayName);
 
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 z-[60] transition-all duration-300">
-      <div className="flex items-center justify-between h-full px-4 sm:px-6">
+    <header className="fixed top-0 right-0 left-0 md:left-64 h-auto min-h-[4rem] md:min-h-[5rem] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-[60] transition-all duration-300 flex items-center shadow-xs">
+      <div className="flex flex-wrap items-center justify-between w-full px-4 sm:px-6 py-2 gap-y-2">
         {/* Left section */}
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={onMenuClick}
             className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
@@ -261,51 +278,75 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back</span>
+            <span className="hidden sm:inline font-medium">Back</span>
           </button>
-          <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
+        </div>
 
-          {/* Desktop search */}
-          <div className="flex-1 max-w-xl hidden sm:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search users, groups, risks..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+        {/* Central Statistics Section */}
+        <div className="flex items-center justify-center flex-wrap gap-4 sm:gap-6 xl:gap-8 mx-auto order-last w-full lg:w-auto lg:order-none pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-100 dark:border-gray-700/60">
+          {/* Risk Score */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-bold">Risk Score</span>
+            <span className="text-base xl:text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">
+              {loadingStats ? "..." : riskScoreDisplay}
+            </span>
           </div>
 
-          {/* {onEmergency && (
-            <button
-              onClick={onEmergency}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
-            >
-              Remediate
-            </button>
-          )} */}
+          {/* Risk Level */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-bold">Risk Level</span>
+            <span className={`text-base xl:text-lg font-extrabold ${riskLevelColor} mt-0.5`}>
+              {loadingStats ? "..." : riskLevel}
+            </span>
+          </div>
+
+          {/* Total Users */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-bold">Total Users</span>
+            <span className="text-base xl:text-lg font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
+              {loadingStats ? "..." : totalUsers !== null ? totalUsers : "Error"}
+            </span>
+          </div>
+
+          {/* Active Groups */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-bold">Active Groups</span>
+            <span className="text-base xl:text-lg font-extrabold text-gray-700 dark:text-gray-300 mt-0.5">
+              {loadingStats ? "..." : activeGroups !== null ? activeGroups : "Error"}
+            </span>
+          </div>
+
+          {/* Live Graph Badge */}
+          <div className="flex items-center bg-gray-50 dark:bg-gray-700/40 px-2.5 py-1 rounded-full border border-gray-100 dark:border-gray-600/50">
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse mr-1.5" />
+            <span className="text-[9px] text-gray-500 dark:text-gray-400 tracking-tight font-semibold">Live Microsoft Graph Data</span>
+          </div>
         </div>
 
         {/* Right section */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <ThemeToggle />
+          
+          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700/60 mx-1 hidden sm:block"></div>
           <div className="relative">
-            <button 
+            <button
               ref={bellRef}
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative p-2 rounded-lg transition-colors ${
-                showNotifications 
-                  ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-500/50' 
-                  : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
-              }`}
+              className={`relative p-2 rounded-xl transition-all duration-200 ${showNotifications
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                }`}
+              aria-label="Notifications"
             >
-              <BellRing className={`w-5 h-5 ${unreadCount > 0 ? 'animate-bounce' : ''}`} />
+              <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></span>
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-red-600 text-white rounded-full flex items-center justify-center shadow-sm border border-white dark:border-gray-800 animate-fade-in">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
               )}
             </button>
             {showNotifications && (
-              <div 
+              <div
                 ref={notificationRef}
                 className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[100] overflow-hidden"
               >
@@ -315,14 +356,14 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
                   </h3>
                   <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
-                      <button 
+                      <button
                         onClick={markAllAsRead}
                         className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline"
                       >
                         Mark all read
                       </button>
                     )}
-                    <button 
+                    <button
                       onClick={() => setNotifications([])}
                       className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-400"
                       title="Clear all"
@@ -344,8 +385,8 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
                   ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                       {notifications.map(n => (
-                        <div 
-                          key={n.id} 
+                        <div
+                          key={n.id}
                           className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative ${!n.read ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
                           onClick={() => markAsRead(n.id)}
                         >
@@ -353,20 +394,18 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
                           )}
                           <div className="flex gap-3">
-                            <div className={`p-2 rounded-lg shrink-0 h-fit ${
-                              n.severity === 'critical' ? 'bg-red-100 dark:bg-red-900/30' :
+                            <div className={`p-2 rounded-lg shrink-0 h-fit ${n.severity === 'critical' ? 'bg-red-100 dark:bg-red-900/30' :
                               n.severity === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30' :
-                              'bg-amber-100 dark:bg-amber-900/30'
-                            }`}>
+                                'bg-amber-100 dark:bg-amber-900/30'
+                              }`}>
                               {getIcon(n.severity, n.alertType)}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs font-bold ${
-                                  n.severity === 'critical' ? 'text-red-600 dark:text-red-400' :
+                                <span className={`text-xs font-bold ${n.severity === 'critical' ? 'text-red-600 dark:text-red-400' :
                                   n.severity === 'success' ? 'text-emerald-600 dark:text-emerald-400' :
-                                  'text-amber-600 dark:text-amber-400'
-                                }`}>
+                                    'text-amber-600 dark:text-amber-400'
+                                  }`}>
                                   {n.title}
                                 </span>
                                 <span className="text-[10px] text-gray-400 flex items-center gap-1">
@@ -377,7 +416,7 @@ export default function TopNav({ onEmergency, onMenuClick }: TopNavProps) {
                                 {n.message.split(/(\bSuccess: True\b|\bStatus: Succeeded\b|\bStatus: Success\b|\bStatus: Failed\b|\bSuccess: False\b)/i).map((part: string, i: number) => {
                                   const lower = part.toLowerCase();
                                   const isStatus = (lower.includes('success') || lower.includes('succeeded') || lower.includes('failed') || lower.includes('false')) && lower.includes('status') || lower.includes('success:');
-                                  
+
                                   if (isStatus) {
                                     const isSuccess = (lower.includes('success') || lower.includes('succeeded')) && !lower.includes('failed') && !lower.includes('false');
                                     return (

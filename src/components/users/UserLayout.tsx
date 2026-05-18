@@ -198,78 +198,18 @@ export default function UserLayout() {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <TopNav
-        userName={userName}
-        userRole="Identity"
         onEmergency={handleEmergency}
         onMenuClick={() => setSidebarOpen(true)}
+        riskScoreDisplay={riskScoreDisplay}
+        riskLevel={riskLevel}
+        riskLevelColor={riskLevelColor}
+        totalUsers={totalUsers}
+        activeGroups={activeGroups}
+        loadingStats={loading}
       />
       
-      {/* Top Summary Bar - sticky, with left margin on desktop */}
-      <div className="sticky top-16 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm md:ml-64">
-        {/* Mobile search bar */}
-        <div className="p-3 border-b border-gray-100 dark:border-gray-700 md:hidden">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users, groups, risks..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="p-3 sm:p-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex flex-wrap gap-6 sm:gap-8">
-              {/* Risk Score */}
-              <div className="flex flex-col">
-                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Risk Score</span>
-                <div className="flex items-baseline gap-0.5 mt-0.5">
-                  <span className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    {loading ? "..." : riskScoreDisplay}
-                  </span>
-                </div>
-              </div>
-
-              {/* Risk Level */}
-              <div className="flex flex-col">
-                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Risk Level</span>
-                <div className="mt-0.5">
-                  <span className={`text-lg sm:text-xl font-bold ${riskLevelColor}`}>
-                    {loading ? "..." : riskLevel}
-                  </span>
-                </div>
-              </div>
-
-              {/* Total Users */}
-              <div className="flex flex-col">
-                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Total Users</span>
-                <div className="mt-0.5">
-                  <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
-                    {loading ? "..." : totalUsers !== null ? totalUsers : "Error"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Active Groups */}
-              <div className="flex flex-col">
-                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Active Groups</span>
-                <div className="mt-0.5">
-                  <span className="text-lg sm:text-xl font-medium text-gray-700 dark:text-gray-300">
-                    {loading ? "..." : activeGroups !== null ? activeGroups : "Error"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-xs text-gray-500 self-center">Live Microsoft Graph Data</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content – increased top padding to clear the sticky bar */}
-      <main className="md:ml-64 p-4 sm:p-6 pt-24 md:pt-20 transition-all duration-300">
+      {/* Main content */}
+      <main className="md:ml-64 p-4 sm:p-6 pt-28 md:pt-24 transition-all duration-300">
         <Outlet />
       </main>
 

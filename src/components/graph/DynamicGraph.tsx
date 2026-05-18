@@ -1,5 +1,5 @@
 // Frontend/src/components/graph/DynamicGraph.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -60,8 +60,9 @@ const LEVEL_HEIGHT = 220;
 const TOP_PADDING = 80;
 
 
-const nodeTypes = {};
-const edgeTypes = {};
+// Static types moved outside to ensure stable references
+const initialNodeTypes = {};
+const initialEdgeTypes = {};
 
 const getNodeStyle = (type: string) => {
   const base = {
@@ -523,6 +524,8 @@ function DynamicGraphContent() {
   const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
 
   const { setCenter, fitView } = useReactFlow();
+  const nodeTypes = useMemo(() => initialNodeTypes, []);
+  const edgeTypes = useMemo(() => initialEdgeTypes, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const rfInstance = useRef<ReactFlowInstance | null>(null);
 
@@ -667,7 +670,7 @@ function DynamicGraphContent() {
   return (
     <div ref={containerRef} className="relative w-full h-full">
       {/* Search Bar UI */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4">
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-4 w-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
@@ -698,7 +701,7 @@ function DynamicGraphContent() {
 
           {/* Suggestions Dropdown */}
           {searchTerm && !highlightedNodes.size && (
-            <div className="absolute mt-2 w-full bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50 max-h-60 overflow-y-auto">
+            <div className="absolute mt-2 w-full bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-20 max-h-60 overflow-y-auto">
               {nodes
                 .filter(n => (n.data as any).label.toLowerCase().includes(searchTerm.toLowerCase()))
                 .slice(0, 5)

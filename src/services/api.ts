@@ -14,6 +14,47 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    // Check if it's a 401 and we haven't retried yet, and avoid looping on the refresh endpoint itself
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
+      originalRequest._retry = true;
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          const res = await axios.post(`${API_ROOT}/api/auth/refresh`, JSON.stringify(refreshToken), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const { accessToken, refreshToken: newRefreshToken } = res.data;
+          
+          // Update tokens in storage
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', newRefreshToken);
+          
+          // Update authorization header and retry request
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        // If refresh fails, clear session and force login
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("userProvider");
+        localStorage.removeItem("userRole"); 
+        localStorage.removeItem("userPhoto");
+        sessionStorage.clear();
+        
+        window.location.href = '/signin';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const userApi = {
   getAll: () => api.get('/admin/users'),
   getCurrent: () => api.get('/admin/me'),
@@ -62,6 +103,11 @@ export const gnnApi = {
 
   simulateRemediation: (data: RemediationRequest) =>
     api.post('/gnn/simulate-remediate', data),
+};
+
+export const settingsApi = {
+  get: () => api.get('/settings'),
+  update: (data: { sessionTimeoutMinutes: number }) => api.put('/settings', data),
 };
 
 export interface RemediationRequest {

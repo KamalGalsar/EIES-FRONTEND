@@ -131,6 +131,7 @@ function Field({
   readOnly,
   textarea,
   error,
+  masked,
 }: {
   label: string;
   value: string;
@@ -141,7 +142,11 @@ function Field({
   readOnly?: boolean;
   textarea?: boolean;
   error?: string | null;
+  masked?: boolean;
 }) {
+  const [revealed, setRevealed] = useState(false);
+  const isMasked = masked && !revealed && !editing;
+
   const base =
     "w-full border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none transition-all";
   const activeClass =
@@ -152,28 +157,40 @@ function Field({
 
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-        {label}
-      </label>
-      {textarea ? (
-        <textarea
-          rows={3}
-          value={value}
-          disabled={!editing || readOnly}
-          placeholder={placeholder}
-          onChange={(e) => onChange(name, e.target.value)}
-          className={`${base} resize-none ${editing && !readOnly ? activeClass : readOnlyClass} ${errorClass}`}
-        />
-      ) : (
-        <input
-          type={name === "phone" ? "tel" : "text"}
-          value={value}
-          disabled={!editing || readOnly}
-          placeholder={placeholder}
-          onChange={(e) => onChange(name, e.target.value)}
-          className={`${base} ${editing && !readOnly ? activeClass : readOnlyClass} ${errorClass}`}
-        />
-      )}
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          {label}
+        </label>
+        {masked && !editing && (
+          <button
+            onClick={() => setRevealed(!revealed)}
+            className="text-[10px] text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold uppercase"
+          >
+            {revealed ? "Hide" : "Reveal"}
+          </button>
+        )}
+      </div>
+      <div className="relative">
+        {textarea ? (
+          <textarea
+            rows={3}
+            value={isMasked ? "••••••••••••••••" : value}
+            disabled={!editing || readOnly}
+            placeholder={placeholder}
+            onChange={(e) => onChange(name, e.target.value)}
+            className={`${base} resize-none ${editing && !readOnly ? activeClass : readOnlyClass} ${errorClass} ${isMasked ? 'font-mono blur-[2px] opacity-60' : ''}`}
+          />
+        ) : (
+          <input
+            type={name === "phone" ? "tel" : "text"}
+            value={isMasked ? "••••••••••••••••" : value}
+            disabled={!editing || readOnly}
+            placeholder={placeholder}
+            onChange={(e) => onChange(name, e.target.value)}
+            className={`${base} ${editing && !readOnly ? activeClass : readOnlyClass} ${errorClass} ${isMasked ? 'font-mono blur-[2px] opacity-60' : ''}`}
+          />
+        )}
+      </div>
       {error && editing && !readOnly && (
         <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>
       )}
@@ -472,7 +489,12 @@ export default function UserProfile() {
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
               {profile?.name}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{profile?.email}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{profile?.email}</span>
+              <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 rounded font-mono">
+                {profile?.alias}
+              </span>
+            </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
                 <User className="w-3 h-3" />
@@ -530,6 +552,7 @@ export default function UserProfile() {
                 value={form.email ?? ""}
                 editing={editing}
                 readOnly
+                masked
                 onChange={handleChange}
               />
               <Field
@@ -538,6 +561,7 @@ export default function UserProfile() {
                 value={form.phone ?? ""}
                 editing={editing}
                 placeholder="10-digit mobile number"
+                masked
                 onChange={handleChange}
                 error={errors.phone}
               />
@@ -623,6 +647,39 @@ export default function UserProfile() {
             placeholder="Tell us a bit about yourself…"
             onChange={handleChange}
           />
+        </Card>
+
+        {/* Privacy Shield Info */}
+        <Card title="Privacy Shield" icon={Shield} accent="blue">
+          <div className="space-y-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200">Pseudonymization Active</h4>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
+                    Your personal information is encrypted at rest. Public-facing interactions use your secure alias to protect your identity.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3 border border-gray-100 dark:border-gray-800 rounded-lg">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1">Your Public Alias</p>
+                <p className="text-sm font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-1 rounded inline-block">
+                  {profile?.alias}
+                </p>
+              </div>
+              <div className="p-3 border border-gray-100 dark:border-gray-800 rounded-lg">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1">Encryption Status</p>
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase">AES-256 Protected</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </Card>
 
         {/* Security */}

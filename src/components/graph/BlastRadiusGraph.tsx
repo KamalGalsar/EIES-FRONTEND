@@ -1,6 +1,6 @@
 // Frontend/src/components/graph/BlastRadiusGraph.tsx
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -166,6 +166,9 @@ function buildLayout(rawNodes: any[], rawEdges: any[]) {
   return { nodes: rfNodes, edges: rfEdges };
 }
 
+const nodeTypes = {};
+const edgeTypes = {};
+
 interface BlastRadiusGraphProps {
   nodeId: string;
 }
@@ -183,6 +186,8 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLocked, setIsLocked] = useState(true); 
   const { showToast } = useToast();
+  const memoizedNodeTypes = useMemo(() => nodeTypes, []);
+  const memoizedEdgeTypes = useMemo(() => edgeTypes, []);
   const flowInstance = useRef<ReactFlowInstance | null>(null);
 
   const handleNodeClick = (_: any, node: Node) => {
@@ -443,7 +448,7 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
 
       {/* Confirmation Modal */}
       {confirmAction && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-[#0F172A] border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-orange-950/40 border-b border-orange-800/40">
@@ -686,6 +691,8 @@ export default function BlastRadiusGraph({ nodeId }: BlastRadiusGraphProps) {
           nodesDraggable={!isLocked}
           nodesFocusable={!isLocked}
           style={{ background: '#0B1220' }}
+          nodeTypes={memoizedNodeTypes}
+          edgeTypes={memoizedEdgeTypes}
           proOptions={{ hideAttribution: true }}
           className="bg-transparent"
         >

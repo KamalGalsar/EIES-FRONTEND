@@ -1,5 +1,4 @@
 // Frontend/src/context/AuthModalContext.tsx
-// this page is for blur effect of sign in and sign up page
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
@@ -10,6 +9,8 @@ interface AuthModalContextType {
   mode: AuthMode;
   openModal: (mode: AuthMode) => void;
   closeModal: () => void;
+  verificationDismissed: boolean;
+  dismissVerification: () => void;
 }
 
 const AuthModalContext = createContext<AuthModalContextType | undefined>(undefined);
@@ -25,19 +26,38 @@ export const useAuthModal = () => {
 export const AuthModalProvider = ({ children }: { children: React.ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>(null);
+  const [verificationDismissed, setVerificationDismissed] = useState(false);
 
-  const openModal = useCallback((modalMode: AuthMode) => {
-    setMode(modalMode);
-    setIsOpen(true);
-  }, []);
+  const openModal = useCallback(
+    (modalMode: AuthMode) => {
+      setMode(modalMode);
+      setIsOpen(true);
+    },
+    []
+  );
 
   const closeModal = useCallback(() => {
     setIsOpen(false);
     setMode(null);
   }, []);
 
+  const dismissVerification = useCallback(() => {
+    setVerificationDismissed(true);
+    setIsOpen(false);
+    setMode(null);
+  }, []);
+
   return (
-    <AuthModalContext.Provider value={{ isOpen, mode, openModal, closeModal }}>
+    <AuthModalContext.Provider
+      value={{
+        isOpen,
+        mode,
+        openModal,
+        closeModal,
+        verificationDismissed,
+        dismissVerification,
+      }}
+    >
       {children}
     </AuthModalContext.Provider>
   );

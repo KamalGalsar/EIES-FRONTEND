@@ -1,13 +1,30 @@
-// Frontend/src/pages/admin/AdminManagement.tsx
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
-import { useToast } from "../../context/ToastContext"; 
+import { 
+  Users, 
+  ShieldCheck, 
+  UserX, 
+  UserCheck, 
+  Trash2, 
+  Plus, 
+  Search, 
+  Eye, 
+  EyeOff, 
+  Loader2, 
+  Mail, 
+  UserCircle,
+  Edit} from "lucide-react";
 import { userApi } from "../../services/api";
-import { canModify, type RoleType, type AdminUser, type CurrentUser } from "../../types/admin";
+import { canModify } from "../../types/admin";
+import type { RoleType, AdminUser, CurrentUser } from "../../types/admin";
+
+import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
+
 
 // Available user type for dropdown
 interface AvailableUser {
   id: number;
+  alias: string;
   name: string;
   email: string;
   profilePicture?: string;
@@ -20,6 +37,7 @@ export default function AdminManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const { privacyMode, togglePrivacy } = useAuth();
   const [newAdmin, setNewAdmin] = useState({
     email: '',
     role: 'ANALYST' as RoleType,
@@ -110,7 +128,9 @@ export default function AdminManagement() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Management</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Management</h1>
+        </div>
         {canAddAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
@@ -126,7 +146,9 @@ export default function AdminManagement() {
         <table className="w-full min-w-[640px]">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Name</th>
+              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                {privacyMode ? 'Alias' : 'Name / Identity'}
+              </th>
               <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Role</th>
               <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Scope</th>
               <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
@@ -141,16 +163,22 @@ export default function AdminManagement() {
                 <tr key={admin.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-4 sm:px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-bold text-xs overflow-hidden shrink-0">
-                        {admin.profilePicture ? (
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs overflow-hidden shrink-0 border border-blue-200 dark:border-blue-800">
+                        {admin.profilePicture && !privacyMode ? (
                           <img src={admin.profilePicture} alt={admin.name} className="w-full h-full object-cover" />
                         ) : (
-                          admin.name.charAt(0).toUpperCase()
+                          (privacyMode ? admin.alias : admin.name).charAt(privacyMode ? 5 : 0).toUpperCase()
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{admin.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{admin.email}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {privacyMode ? (
+                            <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                              {admin.alias}
+                            </span>
+                          ) : admin.name}
+                        </p>
+                        {!privacyMode && <p className="text-sm text-gray-500 dark:text-gray-400">{admin.email}</p>}
                       </div>
                     </div>
                   </td>
@@ -226,7 +254,7 @@ export default function AdminManagement() {
                   <option value="">-- Choose a user --</option>
                   {availableUsers.map(user => (
                     <option key={user.id} value={user.email}>
-                      {user.name} ({user.email})
+                      {privacyMode ? user.alias : `${user.name} (${user.email})`}
                     </option>
                   ))}
                 </select>

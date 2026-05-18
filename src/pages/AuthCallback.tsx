@@ -68,12 +68,16 @@ export default function AuthCallback() {
     if (accessToken && refreshToken) {
       const decodedEmail = decodeURIComponent(email);
       const decodedName = decodeURIComponent(name);
+      const alias = searchParams.get('alias') ?? '';
+      const userId = parseInt(searchParams.get('userId') ?? '0', 10);
 
       login({
+        id: userId || undefined,
         accessToken,
         refreshToken,
         email: decodedEmail,
         name: decodedName,
+        alias,
         provider,
         role,
         isVerified,

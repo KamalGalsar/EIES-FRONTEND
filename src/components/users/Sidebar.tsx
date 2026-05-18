@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const displayName = user?.name || user?.email?.split("@")[0] || "Guest";
+  const displayName = user?.name || user?.alias || user?.email?.split("@")[0] || "Guest";
   const userRole = user?.role || "Member";
 
   const [riskScore, setRiskScore] = useState<number | null>(null);

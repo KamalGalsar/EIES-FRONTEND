@@ -39,7 +39,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/Alerts?count=200`, {
+        const res = await fetch(`${API_BASE_URL}/api/Alerts?count=200&all=true`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -74,6 +74,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       id: "admin-management",
       path: "/admin/admin-management",
       label: "Admin Management",
+      icon: Users,
+    },
+    {
+      id: "user-management",
+      path: "/admin/user-management",
+      label: "User Management",
       icon: Users,
     },
     {

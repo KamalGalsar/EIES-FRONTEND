@@ -1,6 +1,3 @@
-// Frontend/src/App.tsx
-
-// Frontend/src/App.tsx
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -33,6 +30,7 @@ import AuthModal from "./components/AuthModal";
 import AdminLayout from "./components/admin/AdminLayout";
 import Overview from "./pages/admin/Overview";
 import AdminManagement from "./pages/admin/AdminManagement";
+import UserManagement from "./pages/admin/UserManagement";
 import RoleHierarchy from "./pages/admin/RoleHierarchy";
 import Alerts from "./pages/admin/Alerts";            // admin version
 import AuditLogs from "./pages/admin/AuditLogs";      // was History
@@ -47,7 +45,6 @@ import Directory from "./pages/users/Directory";
 import Permissions from "./pages/users/Permissions";
 import SettingsPage from "./pages/users/Settings";
 
-// Protected Route
 // Protected Route
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -100,7 +97,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Enforces whitelisted paths for unverified users
 const VerificationGate = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const { openModal, isOpen } = useAuthModal();
+  const { openModal, isOpen, verificationDismissed } = useAuthModal();  // ← added flag
   const location = useLocation();
 
   const whitelistedPaths = [
@@ -118,11 +115,11 @@ const VerificationGate = ({ children }: { children: React.ReactNode }) => {
 
   React.useEffect(() => {
     if (!isLoading && isAuthenticated && !user?.isVerified) {
-      if (!whitelistedPaths.includes(location.pathname) && !isOpen) {
+      if (!whitelistedPaths.includes(location.pathname) && !isOpen && !verificationDismissed) {   // ← respect flag
         openModal('verification');
       }
     }
-  }, [isLoading, isAuthenticated, user, location.pathname, openModal, isOpen]);
+  }, [isLoading, isAuthenticated, user, location.pathname, openModal, isOpen, verificationDismissed]);
 
   return <>{children}</>;
 };
@@ -177,6 +174,7 @@ export default function App() {
                   >
                     <Route index element={<Navigate to="/admin/admin-management" replace />} />
                     <Route path="admin-management" element={<AdminManagement />} />
+                    <Route path="user-management" element={<UserManagement />} />
                     <Route path="role-hierarchy" element={<RoleHierarchy />} />
                     <Route path="alerts" element={<Alerts />} />
                     <Route path="audit-logs" element={<AuditLogs />} />

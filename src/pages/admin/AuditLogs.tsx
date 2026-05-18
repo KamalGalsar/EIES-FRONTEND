@@ -1,5 +1,6 @@
-// Frontend/src/pages/admin/AuditLogs.tsx
 import { useEffect, useState, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { maskPII } from "../../utils/privacy";
 
 const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
@@ -170,6 +171,7 @@ export default function History() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [actorFilter, setActorFilter] = useState<ActorFilter>("all");
+  const { privacyMode } = useAuth();
 
   const fetchAuditLogs = async () => {
       setLoading(true);
@@ -369,7 +371,7 @@ export default function History() {
                       </p>
                       {log.targetResources.length > 0 && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">
-                          Target: {log.targetResources.join(", ")}
+                          Target: {privacyMode ? log.targetResources.map(r => maskPII(r)).join(", ") : log.targetResources.join(", ")}
                         </p>
                       )}
                     </td>
@@ -408,7 +410,11 @@ export default function History() {
                           {log.initiatedBy}
                         </span>
                       ) : (
-                        log.initiatedBy
+                        privacyMode ? (
+                          <span className="font-mono text-xs">
+                            {maskPII(log.initiatedBy)}
+                          </span>
+                        ) : log.initiatedBy
                       )}
                     </td>
                   </tr>

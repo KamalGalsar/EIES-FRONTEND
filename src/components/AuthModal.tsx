@@ -42,7 +42,7 @@ async function copyToClipboard(text: string) {
 }
 
 export default function AuthModal() {
-  const { isOpen, mode: contextMode, closeModal } = useAuthModal();
+  const { isOpen, mode: contextMode, closeModal, dismissVerification } = useAuthModal();
   const navigate = useNavigate();
   const { accessToken, refreshToken, user, login, markVerified } = useAuth();
   const { showToast } = useToast();
@@ -192,7 +192,11 @@ export default function AuthModal() {
 
         showToast('Verification successful! You are now verified.', 'success');
         closeModal();
-        navigate('/users');
+        if (user?.role === 'Admin') {
+          navigate('/admin/admin-management');
+        } else {
+          navigate('/users');
+        }
       } catch (err) {
         showToast(err instanceof Error ? err.message : "Verification failed", "error");
       } finally {
@@ -398,20 +402,23 @@ Write-Host "Secret expires on: $($endDate.ToString('yyyy-MM-dd'))"
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-        onClick={closeModal}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            closeModal();
+          }
+        }}
       >
         <div
           ref={modalRef}
           className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-white/20 flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
+          {/* Close button – now uses dismissVerification */}
           <button
-            onClick={() => {
-              closeModal();
-              if (contextMode === 'verification') {
-                navigate('/');
-              }
+            onClick={(e) => {
+              e.stopPropagation();
+              dismissVerification();            // ← sets flag + closes modal
+              navigate('/');
             }}
             className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 dark:bg-gray-800/50 hover:bg-white/20 dark:hover:bg-gray-700/50 transition"
             aria-label="Close"
@@ -891,7 +898,11 @@ Write-Host "Secret expires on: $($endDate.ToString('yyyy-MM-dd'))"
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={closeModal}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          closeModal();
+        }
+      }}
     >
       <div
         ref={modalRef}
@@ -900,7 +911,10 @@ Write-Host "Secret expires on: $($endDate.ToString('yyyy-MM-dd'))"
       >
         {/* Close button */}
         <button
-          onClick={closeModal}
+          onClick={(e) => {
+            e.stopPropagation();
+            closeModal();
+          }}
           className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 dark:bg-gray-800/50 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-all duration-200 group"
           aria-label="Close"
         >

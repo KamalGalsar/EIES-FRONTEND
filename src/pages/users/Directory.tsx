@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+
 import {
   ChevronDown,
   ChevronRight,
@@ -11,6 +13,9 @@ import {
 } from "lucide-react";
 import BlastRadiusGraph from "../../components/graph/BlastRadiusGraph";
 import api from "../../services/api";
+
+import { useAuth } from "../../context/AuthContext";
+
 
 // Types
 interface EntraUser {
@@ -51,29 +56,47 @@ export default function Directory() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { privacyMode } = useAuth();
+
+  const location = useLocation();
 
   useEffect(() => {
-    fetchDirectory();
-  }, []);
+    fetchDirectory().then(() => {
+      // Handle deep linking via query parameter
+      const params = new URLSearchParams(location.search);
+      const targetId = params.get("id");
+      if (targetId) {
+        setExpandedId(targetId);
+        // Also scroll to it if possible or just ensure it's filtered
+      }
+    });
+  }, [location.search]);
 
   useEffect(() => {
     let filtered = [...entries];
 
-    if (filterType !== "all") {
-      filtered = filtered.filter((e) => e.type === filterType);
-    }
+    const params = new URLSearchParams(location.search);
+    const targetId = params.get("id");
 
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (e) =>
-          e.name.toLowerCase().includes(query) ||
-          e.email.toLowerCase().includes(query)
-      );
+    if (targetId) {
+      filtered = filtered.filter(e => e.id === targetId);
+    } else {
+      if (filterType !== "all") {
+        filtered = filtered.filter((e) => e.type === filterType);
+      }
+
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (e) =>
+            e.name.toLowerCase().includes(query) ||
+            e.email.toLowerCase().includes(query)
+        );
+      }
     }
 
     setFilteredEntries(filtered);
-  }, [searchQuery, filterType, entries]);
+  }, [searchQuery, filterType, entries, location.search]);
 
   const fetchDirectory = async () => {
     try {
@@ -153,68 +176,74 @@ export default function Directory() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <UsersRound className="w-6 h-6 text-blue-500" />
-          Identity Exposure
-        </h1>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex rounded-md shadow-sm" role="group">
-            <button
-              type="button"
-              onClick={() => setFilterType("all")}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-lg border ${
-                filterType === "all"
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
-              <LayoutList className="w-4 h-4" />
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType("user")}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border-t border-b ${
-                filterType === "user"
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Users
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType("group")}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-r-lg border ${
-                filterType === "group"
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Groups
-            </button>
-          </div>
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+    <div className="p-4 sm:p-6 space-y-2 -mt-8 sm:-mt-10">
+      {/* Sticky Title & Filtering Bar - Restored original box height to keep visual margin identical */}
+      <div className="sticky top-16 md:top-20 z-30 bg-gray-50 dark:bg-gray-900 py-3 -mx-4 sm:-mx-6 px-4 sm:px-6 border-b border-gray-200 dark:border-gray-700 shadow-xs transition-all">
+        {/* Absolute solid cover layer hanging directly below the border to seamlessly conceal scrolling table rows inside the tighter 8px margin gap without pushing document flow */}
+        <div className="absolute left-0 right-0 top-full h-2 bg-gray-50 dark:bg-gray-900 pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <UsersRound className="w-6 h-6 text-blue-500 shrink-0" />
+            <span className="truncate">Identity Exposure</span>
+          </h1>
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+            <div className="flex rounded-md shadow-sm" role="group">
+              <button
+                type="button"
+                onClick={() => setFilterType("all")}
+                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-lg border ${
+                  filterType === "all"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <LayoutList className="w-4 h-4" />
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("user")}
+                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border-t border-b ${
+                  filterType === "user"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <User className="w-4 h-4" />
+                Users
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("group")}
+                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-r-lg border ${
+                  filterType === "group"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                Groups
+              </button>
+            </div>
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden md:overflow-visible">
+        <div className="overflow-x-auto md:overflow-x-visible">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <thead className="sticky top-[132px] md:top-[152px] z-20 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 shadow-xs transition-all">
               <tr>
                 <th className="w-8 px-2 py-3"></th>
                 <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">

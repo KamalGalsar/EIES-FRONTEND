@@ -227,8 +227,10 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
+      {/* Graph + Sidebar (unchanged) */}
+      {/* Identity Graph - Absolute Fold Submergence Optimized */}
       <div className="w-full">
-        <div className="h-[400px] sm:h-[500px] lg:h-[calc(100vh-12rem)] bg-[#0B1220] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="h-[500px] sm:h-[600px] lg:h-[calc(100vh-6.8rem)] bg-[#0B1220] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-xl">
           <DynamicGraph />
         </div>
       </div>
@@ -284,26 +286,38 @@ export default function Overview() {
             ) : topBlastRadius.length === 0 ? (
               <div className="p-6 text-center text-gray-500">No data available</div>
             ) : (
-              topBlastRadius.map((item) => (
-                <div key={item.nodeId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{item.nodeName}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${getNodeTypeBadge(item.nodeType)}`}>
-                        {item.nodeType}
-                      </span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Blast Radius: {item.blastRadius}
+              topBlastRadius.map((item) => {
+                const path = item.nodeType === 'servicePrincipal'
+                  ? `/users/permissions?spId=${item.nodeId}`
+                  : `/users/directory?id=${item.nodeId}`;
+
+                return (
+                  <a
+                    key={item.nodeId}
+                    href={path}
+                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group cursor-pointer"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {item.nodeName}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${getNodeTypeBadge(item.nodeType)}`}>
+                          {item.nodeType}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Blast Radius: {item.blastRadius}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {item.blastRadius} nodes
                       </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {item.blastRadius} nodes
-                    </span>
-                  </div>
-                </div>
-              ))
+                  </a>
+                );
+              })
             )}
           </div>
         </div>

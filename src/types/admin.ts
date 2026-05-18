@@ -15,8 +15,9 @@ export const ROLE_LEVELS = {
 
 export type RoleType = keyof typeof ROLE_LEVELS;
 
-export interface AdminUser {
+export type AdminUser = {
   id: number;
+  alias: string;
   name: string;
   email: string;
   role: RoleType;
@@ -27,20 +28,22 @@ export interface AdminUser {
   immutable?: boolean;
   riskLevel: 'low' | 'medium' | 'high';
   profilePicture?: string;
-}
+};
 
-export interface CurrentUser {
+export type CurrentUser = {
   id: number;
+  alias: string;
   name: string;
   email: string;
   role: RoleType;
   roleLevel: number;
   profilePicture?: string;
-}
+};
 
 export const MOCK_ADMINS: AdminUser[] = [
   {
     id: 1,
+    alias: "EIES_CEO_01",
     name: "Bhavesh Goswami",
     email: "bhavesh@cloudthat.com",
     role: "CEO",
@@ -53,6 +56,7 @@ export const MOCK_ADMINS: AdminUser[] = [
   },
   {
     id: 2,
+    alias: "EIES_CTO_01",
     name: "Prarthit Mehta",
     email: "prarthit@cloudthat.com",
     role: "CTO",
@@ -61,41 +65,17 @@ export const MOCK_ADMINS: AdminUser[] = [
     status: "active",
     createdBy: "Bhavesh Goswami",
     riskLevel: "low"
-  },
-  {
-    id: 3,
-    name: "Sachin Chokshi",
-    email: "sachinc@cloudthat.com",
-    role: "DIRECTORUK",
-    roleLevel: 3,
-    scope: "General",
-    status: "active",
-    createdBy: "Prarthit Mehta",
-    riskLevel: "medium"
-  },
-  {
-    id: 4,
-    name: "Nanda Kishore",
-    email: "nanda@cloudthat.com",
-    role: "SrVP",
-    roleLevel: 4,
-    scope: "General",
-    status: "active",
-    createdBy: "Prarthit Mehta",
-    riskLevel: "low"
-  },
-  {
-    id: 5,
-    name: "Lakhan Kriplani",
-    email: "lakhan@cloudthat.com",
-    role: "VPTECH",
-    roleLevel: 4,
-    scope: "General",
-    status: "active",
-    createdBy: "Bhavesh Goswami",
-    riskLevel: "medium"
   }
 ];
+
+export const CURRENT_USER: CurrentUser = {
+  id: 1,
+  alias: "EIES_CEO_01",
+  name: "Bhavesh Goswami",
+  email: "bhavesh@cloudthat.com",
+  role: "CEO",
+  roleLevel: 1
+};
 
 export const ROLE_HIERARCHY = [
   {
@@ -110,47 +90,15 @@ export const ROLE_HIERARCHY = [
           { role: "DIRECTORUK", level: 3, children: [] }
         ]
       },
-      {
-        role: "SrVP",
-        level: 4,
-        children: []
-      },
-      {
-        role: "BU_HEAD",
-        level: 4,
-        children: []
-      },
-      {
-        role: "VPTECH",
-        level: 4,
-        children: []
-      },
-      {
-        role: "ADMIN_MANAGER",
-        level: 5,
-        children: []
-      },
-      {
-        role: "SECURITY_ADMIN",
-        level: 6,
-        children: []
-      },
-      {
-        role: "ANALYST",
-        level: 7,
-        children: []
-      }
+      { role: "SrVP", level: 4, children: [] },
+      { role: "BU_HEAD", level: 4, children: [] },
+      { role: "VPTECH", level: 4, children: [] },
+      { role: "ADMIN_MANAGER", level: 5, children: [] },
+      { role: "SECURITY_ADMIN", level: 6, children: [] },
+      { role: "ANALYST", level: 7, children: [] }
     ]
   }
 ];
-
-export const CURRENT_USER: CurrentUser = {
-  id: 1,
-  name: "Bhavesh Goswami",
-  email: "bhavesh@cloudthat.com",
-  role: "CEO",
-  roleLevel: 1
-};
 
 export function canModify(currentUser: CurrentUser, targetUser: AdminUser): boolean {
   if (targetUser.immutable) return false;

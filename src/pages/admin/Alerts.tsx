@@ -1,5 +1,7 @@
 // Frontend/src/pages/admin/Alerts.tsx
 import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { maskPII } from "../../utils/privacy";
 
 const BACKEND = import.meta.env.VITE_API_BASE_URL || "http://localhost:5268";
 
@@ -20,12 +22,13 @@ export default function Alerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { privacyMode } = useAuth();
 
   const token = localStorage.getItem("accessToken") || "";
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch(`${BACKEND}/api/Alerts?count=50`, {
+      const response = await fetch(`${BACKEND}/api/Alerts?count=1000&all=true`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -44,7 +47,7 @@ export default function Alerts() {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [privacyMode]); // Re-fetch or re-render when privacyMode changes
 
   // Mark a single alert as read
   const markAsRead = async (id: number) => {
@@ -225,7 +228,7 @@ export default function Alerts() {
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
-                      {alert.performedBy || "Unknown user"}
+                      {privacyMode ? maskPII(alert.performedBy) : (alert.performedBy || "Unknown user")}
                     </span>
                     {alert.target && (
                       <span className="flex items-center gap-1">
