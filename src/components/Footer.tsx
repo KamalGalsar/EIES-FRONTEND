@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
 
         {/* ── TOP SECTION ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-10">
 
           {/* COL A : Brand */}
           <div>
@@ -28,26 +28,26 @@ export default function Footer() {
             {/* Social Icons */}
             <div className="flex items-center gap-4">
               {/* Facebook */}
-              <a href="#" aria-label="Facebook" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+              <a href="https://www.facebook.com/cloudthat" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
                 </svg>
               </a>
               {/* YouTube */}
-              <a href="#" aria-label="YouTube" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+              <a href="https://www.youtube.com/user/cloudthat" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.96-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
                   <polygon fill="#111827" points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"/>
                 </svg>
               </a>
               {/* X / Twitter */}
-              <a href="#" aria-label="X" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+              <a href="https://x.com/cloudthat" target="_blank" rel="noopener noreferrer" aria-label="X" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                 </svg>
               </a>
               {/* Instagram */}
-              <a href="#" aria-label="Instagram" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+              <a href="https://www.instagram.com/cloudthat/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
                   <circle cx="12" cy="12" r="4"/>
@@ -55,7 +55,7 @@ export default function Footer() {
                 </svg>
               </a>
               {/* LinkedIn */}
-              <a href="#" aria-label="LinkedIn" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+              <a href="https://www.linkedin.com/company/cloudthat" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/>
                   <rect x="2" y="9" width="4" height="12"/>
@@ -70,19 +70,19 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4 tracking-widest uppercase">Quick Links</h3>
             <ul className="space-y-2 text-sm text-white/65">
               {[
-                "Cloud Computing Courses",
-                "Corporate Training",
-                "Cloud Consulting",
-                "Job Assistance Program",
-                "Training calendar",
-                "Test Prep",
-                "AWS Mastery Pass",
-                "Azure Mastery Pass",
-                "DevOps Mastery Pass",
-                "Hire From Us",
+                { label: "Cloud Computing Courses", url: "https://www.cloudthat.com/training/" },
+                { label: "Corporate Training", url: "https://www.cloudthat.com/corporate-training/" },
+                { label: "Cloud Consulting", url: "https://www.cloudthat.com/consulting/" },
+                { label: "Job Assistance Program", url: "https://www.cloudthat.com/training/cloud-and-devops-expert-program/" },
+                { label: "Training calendar", url: "https://www.cloudthat.com/training/calendar" },
+                { label: "Test Prep", url: "https://testprep.cloudthat.com/" },
+                { label: "AWS Mastery Pass", url: "https://www.cloudthat.com/training/aws-mastery-pass/" },
+                { label: "Azure Mastery Pass", url: "https://www.cloudthat.com/training/azure-mastery-pass/" },
+                { label: "DevOps Mastery Pass", url: "https://www.cloudthat.com/training/devops-mastery-pass/" },
+                { label: "Hire From Us", url: "https://www.cloudthat.com/training/hire-from-us/" },
               ].map((item) => (
-                <li key={item}>
-                  <a href="#" className="hover:text-white transition-colors">{item}</a>
+                <li key={item.label}>
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">{item.label}</a>
                 </li>
               ))}
             </ul>
@@ -93,43 +93,46 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4 tracking-widest uppercase">Categories</h3>
             <ul className="space-y-2 text-sm text-white/65">
               {[
-                "AI & ML Courses",
-                "AWS Certifications and Training",
-                "Microsoft Azure Certifications",
-                "DevOps Certifications",
-                "GCP Certifications and Trainings",
-                "Microsoft Dynamics 365 Certifications",
-                "Microsoft Security Certifications",
-                "Modern Workplace Trainings",
-                "Power BI Course",
-                "Power Platform Certification",
-                "VMware Certifications",
-                "Home",
+                { label: "AI & ML Courses", url: "https://www.cloudthat.com/training/ai-machine-learning-certification-course" },
+                { label: "AWS Certifications and Training", url: "https://www.cloudthat.com/training/aws/" },
+                { label: "Microsoft Azure Certifications", url: "https://www.cloudthat.com/training/azure/" },
+                { label: "DevOps Certifications", url: "https://www.cloudthat.com/training/devops/" },
+                { label: "GCP Certifications and Trainings", url: "https://www.cloudthat.com/training/google-cloud-certification" },
+                { label: "Microsoft Dynamics 365 Certifications", url: "https://www.cloudthat.com/training/microsoftdynamics/" },
+                { label: "Microsoft Security Certifications", url: "https://www.cloudthat.com/training/microsoft-security/" },
+                { label: "Modern Workplace Trainings", url: "https://www.cloudthat.com/training/modernworkplace/" },
+                { label: "Power BI Course", url: "https://www.cloudthat.com/training/power-platform/pl-300-microsoft-power-bi-data-analyst-training" },
+                { label: "Power Platform Certification", url: "https://www.cloudthat.com/training/power-platform/" },
+                { label: "VMware Certifications", url: "https://www.cloudthat.com/training/vmware/" },
+                { label: "Home", url: "https://www.cloudthat.com/" },
               ].map((item) => (
-                <li key={item}>
-                  <a href="#" className="hover:text-white transition-colors">{item}</a>
+                <li key={item.label}>
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">{item.label}</a>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* COL D : Resources + Contact + ISO Badges */}
+          {/* COL D : Resources */}
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-4 tracking-widest uppercase">Resources</h3>
+            <ul className="space-y-2 text-sm text-white/65">
+              {[
+                { label: "Blogs", url: "https://www.cloudthat.com/resources/blogs/" },
+                { label: "News and Events", url: "https://www.cloudthat.com/resources/news-events" },
+                { label: "Case Study", url: "https://www.cloudthat.com/resources/" },
+                { label: "E-Book", url: "https://www.cloudthat.com/resources/" },
+                { label: "Webinars", url: "https://www.cloudthat.com/resources/" },
+              ].map((item) => (
+                <li key={item.label}>
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">{item.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* COL E : Contact + ISO Badges */}
           <div className="flex flex-col gap-6">
-
-            {/* Resources */}
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-4 tracking-widest uppercase">Resources</h3>
-              <ul className="space-y-2 text-sm text-white/65">
-                {["Blogs", "News and Events", "Case Study", "E-Book", "Webinars"].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-white/10" />
 
             {/* Contact */}
             <div>

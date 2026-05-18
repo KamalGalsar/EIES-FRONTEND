@@ -68,7 +68,7 @@ function ProfileMenu() {
   };
 
   const handleDemoClick = () => {
-    navigate('/demo');
+    navigate('/contact');
     setIsOpen(false);
   };
 

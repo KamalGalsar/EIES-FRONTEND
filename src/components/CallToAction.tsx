@@ -16,11 +16,6 @@ export default function CallToAction() {
 
   return (
     <section id="pricing" className="relative bg-gradient-to-b from-white to-gray-50 text-black dark:from-gray-900 dark:to-gray-950 dark:text-white py-20 overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"></div>
-      </div>
 
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         {/* Main CTA Card */}
@@ -73,7 +68,7 @@ export default function CallToAction() {
 
           {/* Main CTA Buttons */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to ="/demo" 
+            <Link to="/contact" 
               className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] w-full sm:w-auto"
             >
               Try Demo Now
@@ -81,7 +76,7 @@ export default function CallToAction() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </Link>
-            <Link to="/connect"
+            <Link to="/contact"
               className="group inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:border-gray-400 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:border-gray-500 w-full sm:w-auto"
             >
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
